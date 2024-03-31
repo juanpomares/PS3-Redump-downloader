@@ -22,8 +22,8 @@ def getPS3List():
             if list_files_len > 0:
                 print(f'{FILE_JSON_URL} has {list_files_len} titles')
                 return list_files
-    except Exception as e:
-        print(e)
+    except:
+        pass
 
     print('Downloading PS3 list...')
     PS3_titles_response = requests.get(PS3_ISOS_URL)
