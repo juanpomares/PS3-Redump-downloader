@@ -1,4 +1,5 @@
 import json
+import time
 
 import requests
 from bs4 import BeautifulSoup
@@ -11,7 +12,7 @@ FILE_JSON_URL = 'listPS3Titles.json'
 def getPS3List():
     try:
         with open(FILE_JSON_URL, 'r') as file:
-            print(f'{FILE_JSON_URL} exist...')
+            print(f'{FILE_JSON_URL} exists...')
             list_files = json.load(file)
             list_files_len = len(list_files)
             if list_files_len > 0:
@@ -52,5 +53,59 @@ def getPS3List():
 
     return available_PS3_titles
 
+def printList(list):
+    for index, element in enumerate(list):
+        print(f"{index+1}. {element['title']} ({element['size']})")
+    print('')
 
-list = getPS3List()
+def filterList(list, search):
+    searchInput=search.lower()
+    filteredList=[]
+
+    for element in list:
+        if searchInput in element['title'].lower():
+            filteredList.append(element)
+
+    return filteredList
+
+def downloadPS3Element(element):
+    print(element)
+
+def main():
+    PS3List = getPS3List()
+    print('\n\n', end='')
+
+    searchInput=''
+    while True:
+        if searchInput == '':
+            print('Find PS3 title to download: ', end='')
+            searchInput=input()
+        
+        filteredList=filterList(PS3List, searchInput)
+        filteredListLen=len(filteredList)
+
+        if filteredListLen>0:
+            printList(filteredList)
+            print('Enter PS3 number: ', end='')
+            desiredFileNumber=input()
+
+            try:
+                desiredFileNumber=int(desiredFileNumber)-1
+                if desiredFileNumber>=0 and desiredFileNumber<filteredListLen:
+                    print('Downloading ', end='')
+                    print(filteredList[desiredFileNumber])   
+
+                else:
+                    print(f'Number not in valid range (1-{filteredListLen})\n')
+                    time.sleep(2)
+                searchInput=''
+            
+            except:
+                searchInput=desiredFileNumber
+
+
+        else:
+            print('No elements found \n')
+            searchInput=''
+
+main()
