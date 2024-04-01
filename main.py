@@ -6,11 +6,12 @@ import time
 import requests
 from bs4 import BeautifulSoup
 
-from zipfile import ZipFile 
+from zipfile import ZipFile
 
 PS3_ISOS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/'
 PS3_KEYS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203%20-%20Disc%20Keys/'
 FILE_JSON_URL = 'listPS3Titles.json'
+TMP_FILE = 'tmp.zip'
 
 
 def getPS3List():
@@ -37,11 +38,11 @@ def getPS3List():
 
     for current_link in links:
         try:
-            linkElement = current_link.select('td.link a')[0]
-            sizeElement = current_link.select('td.size')[0]
+            link_element = current_link.select('td.link a')[0]
+            size_element = current_link.select('td.size')[0]
 
             available_PS3_titles.append(
-                {'title': linkElement.text, 'link': linkElement['href'], 'size': sizeElement.text})
+                {'title': link_element.text, 'link': link_element['href'], 'size': size_element.text})
 
         except:
             error = 1
@@ -57,26 +58,29 @@ def getPS3List():
 
     return available_PS3_titles
 
-def printList(list):
-    for index, element in enumerate(list):
-        print(f"{index+1}. {element['title']} ({element['size']})")
+
+def printList(_list):
+    for index, element in enumerate(_list):
+        print(f"{index + 1}. {element['title']} ({element['size']})")
     print('')
 
-def filterList(list, search):
-    searchInput=search.lower()
-    filteredList=[]
 
-    for element in list:
-        if searchInput in element['title'].lower():
-            filteredList.append(element)
+def filterList(_list, search):
+    search_input = search.lower()
+    filtered_list = []
 
-    return filteredList
+    for element in _list:
+        if search_input in element['title'].lower():
+            filtered_list.append(element)
+
+    return filtered_list
+
 
 def downloadISOFile(link, name):
     with open(name, "wb") as newFile:
         response = requests.get(link, stream=True)
         total_length = response.headers.get('content-length')
-        if total_length is None: # no content length header
+        if total_length is None:  # no content length header
             newFile.write(response.content)
         else:
             dl = 0
@@ -85,7 +89,7 @@ def downloadISOFile(link, name):
                 dl += len(data)
                 newFile.write(data)
                 done = int(50 * dl / total_length)
-                sys.stdout.write("\r[%s%s]" % ('=' * done, ' ' * (50-done)) + f" {int(100*dl/total_length)} %" )    
+                sys.stdout.write("\r[%s%s]" % ('=' * done, ' ' * (50 - done)) + f" {int(100 * dl / total_length)} %")
                 sys.stdout.flush()
             print('')
 
@@ -95,9 +99,11 @@ def downloadKeyFile(link, name):
     with open(name, "wb") as newFile:
         newFile.write(response.content)
 
+
 def unZipFile(fileRoute):
-    with ZipFile(fileRoute, 'r') as zObject: 
-        zObject.extractall() 
+    with ZipFile(fileRoute, 'r') as zObject:
+        zObject.extractall()
+
 
 def removeFile(fileRoute):
     try:
@@ -105,58 +111,59 @@ def removeFile(fileRoute):
     except:
         print(f'Error removing {fileRoute}')
 
+
 def downloadAndUnzip(route, text, isISO):
-    TMPFILE='tmp.zip'
     print(f"Downloading {text}...")
-    downloadISOFile(route, TMPFILE) if isISO else downloadKeyFile(route, TMPFILE)   
+    downloadISOFile(route, TMP_FILE) if isISO else downloadKeyFile(route, TMP_FILE)
     print(f'Unzipping {text}...\n')
-    unZipFile(TMPFILE)
-    removeFile(TMPFILE)
+    unZipFile(TMP_FILE)
+    removeFile(TMP_FILE)
+
 
 def downloadPS3Element(element):
-    link=element['link']
-    title=element['title']
+    link = element['link']
+    title = element['title']
 
-    downloadAndUnzip(PS3_ISOS_URL+link, f'{title} ISO', True)
-    downloadAndUnzip(PS3_KEYS_URL+link, f'{title} Key', False)
+    downloadAndUnzip(PS3_ISOS_URL + link, f'{title} ISO', True)
+    downloadAndUnzip(PS3_KEYS_URL + link, f'{title} Key', False)
     print(f'\n{title} downloaded :)\n')
 
 
 def main():
-    PS3List = getPS3List()
+    list_titles = getPS3List()
     print('\n\n', end='')
 
-    searchInput=''
+    search_input = ''
     while True:
-        if searchInput == '':
+        if search_input == '':
             print('Find PS3 title to download: ', end='')
-            searchInput=input()
-        
-        filteredList=filterList(PS3List, searchInput)
-        filteredListLen=len(filteredList)
+            search_input = input()
 
-        if filteredListLen>0:
-            printList(filteredList)
+        filtered_list = filterList(list_titles, search_input)
+        filtered_list_len = len(filtered_list)
+
+        if filtered_list_len > 0:
+            printList(filtered_list)
             print('Enter PS3 number: ', end='')
-            desiredFileNumber=input()
+            file_number_input = input()
 
             try:
-                desiredFileNumber=int(desiredFileNumber)-1
-                if desiredFileNumber>=0 and desiredFileNumber<filteredListLen:
-                   downloadPS3Element(filteredList[desiredFileNumber])   
+                file_number = int(file_number_input) - 1
+                if 0 <= file_number < filtered_list_len:
+                    downloadPS3Element(filtered_list[file_number])
 
                 else:
-                    print(f'Number not in valid range (1-{filteredListLen})\n')
+                    print(f'Number not in valid range (1-{filtered_list_len})\n')
                     time.sleep(2)
-                searchInput=''
-            
+                search_input = ''
+
             except ValueError:
-                searchInput=desiredFileNumber
+                search_input = file_number_input
             except Exception as e:
                 print(e)
 
         else:
             print('No elements found \n')
-            searchInput=''
+            search_input = ''
 
 main()
