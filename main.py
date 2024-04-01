@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from zipfile import ZipFile
 
 PS3_ISOS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/'
-PS3_KEYS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203%20-%20Disc%20Keys/'
+PS3_KEYS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203%20-%20Disc%20Keys%20TXT/'
 FILE_JSON_URL = 'listPS3Titles.json'
 TMP_FILE = 'tmp.zip'
 
@@ -123,6 +123,27 @@ def downloadAndUnzip(route, isISO):
     unZipFile(TMP_FILE)
     removeFile(TMP_FILE)
 
+def readGameKey(gameName):
+    gameKeyRoute=f"{gameName}.dkey"
+    try:
+        with open(gameKeyRoute, 'r') as file:
+            key=file.read()
+            return key.strip()
+    except Exception as e:
+        print(e)
+        return None
+
+def decryptFile(gameName):
+    print(f"\nDecrypting {gameName}...")
+    decryptedKey=readGameKey(gameName)
+    if decryptedKey is None:
+        print("Error getting decrypting game key :(\n")
+        return
+
+    command=f'ps3dec d key {decryptedKey} "{gameName}.iso" "{gameName}_decrypted.iso"'
+    os.system(command)
+    print(f"Generated '{gameName}_decrypted.iso'...\n")
+
 
 def downloadPS3Element(element):
     link = element['link']
@@ -133,6 +154,7 @@ def downloadPS3Element(element):
     downloadAndUnzip(PS3_ISOS_URL + link, True)
     downloadAndUnzip(PS3_KEYS_URL + link, False)
     print(f'{title} downloaded :)')
+    decryptFile(title)
 
 
 def main():
