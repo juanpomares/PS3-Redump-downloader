@@ -1,4 +1,5 @@
 *.json
-*zip
+*.zip
 *.iso
 *.key
+*.dkey
