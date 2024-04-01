@@ -27,12 +27,12 @@ def getPS3List():
         pass
 
     print('Downloading PS3 list...')
-    PS3_titles_response = requests.get(PS3_ISOS_URL)
+    ps3_titles_response = requests.get(PS3_ISOS_URL)
 
-    available_PS3_titles = []
+    available_ps3_titles = []
 
     print('Converting data...')
-    soup = BeautifulSoup(PS3_titles_response.content, features='html.parser')
+    soup = BeautifulSoup(ps3_titles_response.content, features='html.parser')
     links = soup.select('table#list tbody tr')
     links.pop(0)
 
@@ -41,22 +41,22 @@ def getPS3List():
             link_element = current_link.select('td.link a')[0]
             size_element = current_link.select('td.size')[0]
 
-            available_PS3_titles.append(
+            available_ps3_titles.append(
                 {'title': link_element.text, 'link': link_element['href'], 'size': size_element.text})
 
         except:
             pass
 
-    print(f'Downloaded {len(available_PS3_titles)} titles')
+    print(f'Downloaded {len(available_ps3_titles)} titles')
 
     print('Saving in file...')
     with open(FILE_JSON_URL, 'w') as file:
-        file.write(json.dumps(available_PS3_titles))
+        file.write(json.dumps(available_ps3_titles))
         file.close()
 
     print(f'Saved in {FILE_JSON_URL}')
 
-    return available_PS3_titles
+    return available_ps3_titles
 
 
 def printList(_list):
@@ -99,6 +99,7 @@ def downloadNormalFile(link, name):
     with open(name, "wb") as newFile:
         newFile.write(response.content)
 
+
 def downloadFile(link, name, withProgress):
     (downloadFileWithProgress if withProgress else downloadNormalFile)(link, name)
 
@@ -116,31 +117,33 @@ def removeFile(fileRoute):
 
 
 def downloadAndUnzip(route, isISO):
-    typeFile="ISO" if isISO else "Key"
-    print(f"Downloading {typeFile} file...")
-    downloadFile(route, TMP_FILE,isISO)
+    file_type_text = "ISO" if isISO else "Key"
+    print(f"Downloading {file_type_text} file...")
+    downloadFile(route, TMP_FILE, isISO)
     print(f'Unzipping...\n')
     unZipFile(TMP_FILE)
     removeFile(TMP_FILE)
 
+
 def readGameKey(gameName):
-    gameKeyRoute=f"{gameName}.dkey"
+    game_key_route = f"{gameName}.dkey"
     try:
-        with open(gameKeyRoute, 'r') as file:
-            key=file.read()
+        with open(game_key_route, 'r') as file:
+            key = file.read()
             return key.strip()
     except Exception as e:
         print(e)
         return None
 
+
 def decryptFile(gameName):
     print(f"\nDecrypting {gameName}...")
-    decryptedKey=readGameKey(gameName)
-    if decryptedKey is None:
+    decrypted_key = readGameKey(gameName)
+    if decrypted_key is None:
         print("Error getting decrypting game key :(\n")
         return
 
-    command=f'ps3dec d key {decryptedKey} "{gameName}.iso" "{gameName}_decrypted.iso"'
+    command = f'ps3dec d key {decrypted_key} "{gameName}.iso" "{gameName}_decrypted.iso"'
     os.system(command)
     print(f"Generated '{gameName}_decrypted.iso'...\n")
 
@@ -193,6 +196,7 @@ def main():
         else:
             print('No elements found \n')
             search_input = ''
+
 
 try:
     main()
