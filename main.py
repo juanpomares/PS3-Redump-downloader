@@ -45,7 +45,7 @@ def getPS3List():
                 {'title': link_element.text, 'link': link_element['href'], 'size': size_element.text})
 
         except:
-            error = 1
+            pass
 
     print(f'Downloaded {len(available_PS3_titles)} titles')
 
@@ -76,7 +76,7 @@ def filterList(_list, search):
     return filtered_list
 
 
-def downloadISOFile(link, name):
+def downloadFileWithProgress(link, name):
     with open(name, "wb") as newFile:
         response = requests.get(link, stream=True)
         total_length = response.headers.get('content-length')
@@ -94,10 +94,13 @@ def downloadISOFile(link, name):
             print('')
 
 
-def downloadKeyFile(link, name):
+def downloadNormalFile(link, name):
     response = requests.get(link)
     with open(name, "wb") as newFile:
         newFile.write(response.content)
+
+def downloadFile(link, name, withProgress):
+    (downloadFileWithProgress if withProgress else downloadNormalFile)(link, name)
 
 
 def unZipFile(fileRoute):
@@ -112,26 +115,29 @@ def removeFile(fileRoute):
         print(f'Error removing {fileRoute}')
 
 
-def downloadAndUnzip(route, text, isISO):
-    print(f"Downloading {text}...")
-    downloadISOFile(route, TMP_FILE) if isISO else downloadKeyFile(route, TMP_FILE)
-    print(f'Unzipping {text}...\n')
+def downloadAndUnzip(route, isISO):
+    typeFile="ISO" if isISO else "Key"
+    print(f"Downloading {typeFile} file...")
+    downloadFile(route, TMP_FILE,isISO)
+    print(f'Unzipping...\n')
     unZipFile(TMP_FILE)
     removeFile(TMP_FILE)
 
 
 def downloadPS3Element(element):
     link = element['link']
-    title = element['title']
+    title = element['title'].replace(".zip", "")
 
-    downloadAndUnzip(PS3_ISOS_URL + link, f'{title} ISO', True)
-    downloadAndUnzip(PS3_KEYS_URL + link, f'{title} Key', False)
-    print(f'\n{title} downloaded :)\n')
+    print(f"Downloading {title}")
+
+    downloadAndUnzip(PS3_ISOS_URL + link, True)
+    downloadAndUnzip(PS3_KEYS_URL + link, False)
+    print(f'{title} downloaded :)')
 
 
 def main():
     list_titles = getPS3List()
-    print('\n\n', end='')
+    print('\n', end='')
 
     search_input = ''
     while True:
