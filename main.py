@@ -194,4 +194,7 @@ def main():
             print('No elements found \n')
             search_input = ''
 
-main()
+try:
+    main()
+except KeyboardInterrupt:
+    print('\n\nBye Bye ;)')
