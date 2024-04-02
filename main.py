@@ -76,6 +76,22 @@ def filterList(_list, search):
     return filtered_list
 
 
+def printProgressPercentage(current, total):
+    current_percentage = f"{int(current * 100 / total)}".rjust(3)
+    total_characters_length = len(f"{total}")
+    current_value_string = f"{current}".rjust(total_characters_length)
+    return f"{current_value_string}/{total} ({current_percentage} % )"
+
+
+def printProgressBar(current, total, characters=50):
+    current_percentage = current / total
+    done = int(characters * current_percentage)
+    progress_bar = "\r[%s>%s]" % ('=' * done, ' ' * (characters - done)) if current_percentage < 0.99 else "\r[%s]" % (
+                '=' * (characters + 1))
+    sys.stdout.write(f"{progress_bar} {printProgressPercentage(current, total)}")
+    sys.stdout.flush()
+
+
 def downloadFileWithProgress(link, name):
     with open(name, "wb") as newFile:
         response = requests.get(link, stream=True)
@@ -88,9 +104,7 @@ def downloadFileWithProgress(link, name):
             for data in response.iter_content(chunk_size=4096):
                 dl += len(data)
                 newFile.write(data)
-                done = int(50 * dl / total_length)
-                sys.stdout.write("\r[%s%s]" % ('=' * done, ' ' * (50 - done)) + f" {int(100 * dl / total_length)} %")
-                sys.stdout.flush()
+                printProgressBar(dl, total_length)
             print('')
 
 
@@ -152,7 +166,7 @@ def downloadPS3Element(element):
     link = element['link']
     title = element['title'].replace(".zip", "")
 
-    print(f"Downloading {title}")
+    print(f"\nDownloading {title}")
 
     downloadAndUnzip(PS3_ISOS_URL + link, True)
     downloadAndUnzip(PS3_KEYS_URL + link, False)
