@@ -1,14 +1,15 @@
 import json
 import os
-import sys
+from pathlib import Path
+from shutil import copyfileobj
 import time
+import zipfile
 
 import requests
 from bs4 import BeautifulSoup
 from tqdm import tqdm
+from tqdm.utils import CallbackIOWrapper
 
-
-from zipfile import ZipFile
 
 PS3_ISOS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/'
 PS3_KEYS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203%20-%20Disc%20Keys%20TXT/'
@@ -84,8 +85,8 @@ def filterList(_list, search):
 
     return filtered_list
 
-
-def downloadFile(link, name, desc):
+# Original code from https://stackoverflow.com/a/37573701
+def downloadFile(link, name):
     with open(name, "wb") as newFile:
         response = requests.get(link, stream=True)
         total_size = int(response.headers.get('content-length', 0))
@@ -94,7 +95,7 @@ def downloadFile(link, name, desc):
         if total_size is None:  # no content length header
             newFile.write(response.content)
         else:
-            with tqdm(total=total_size, unit="B", unit_scale=True, desc=desc) as progress_bar:
+            with tqdm(total=total_size, unit="B", unit_scale=True,  unit_divisor=1024, desc=" - Downloading: ") as progress_bar:
                for data in response.iter_content(block_size):
                     progress_bar.update(len(data))
                     newFile.write(data)
@@ -102,10 +103,19 @@ def downloadFile(link, name, desc):
             if total_size != 0 and progress_bar.n != total_size:
                 raise RuntimeError("Could not download file")
 
-
-def unZipFile(fileRoute):
-    with ZipFile(fileRoute, 'r') as zObject:
-        zObject.extractall()
+# Original code from https://stackoverflow.com/a/73694796
+def unZipFile(fzip):
+    dest = Path('.').expanduser()
+    with zipfile.ZipFile(fzip) as zipf, tqdm(
+        desc=' -  Extracting: ', unit="B", unit_scale=True, unit_divisor=1024,
+        total=sum(getattr(i, "file_size", 0) for i in zipf.infolist()),
+    ) as pbar:
+        for i in zipf.infolist():
+            if not getattr(i, "file_size", 0):  # directory
+                zipf.extract(i, os.fspath(dest))
+            else:
+                with zipf.open(i) as fi, open(os.fspath(dest / i.filename), "wb") as fo:
+                    copyfileobj(CallbackIOWrapper(pbar.update, fi), fo)
 
 
 def removeFile(fileRoute):
@@ -116,11 +126,11 @@ def removeFile(fileRoute):
 
 
 def downloadAndUnzip(route, isISO):
-    file_type_text = "ISO" if isISO else "Key"
-    downloadFile(route, TMP_FILE, f"Downloading {file_type_text} file: ")
-    print(f'Unzipping...\n')
+    print(" # " + ("ISO" if isISO else "Key") + " file...")
+    downloadFile(route, TMP_FILE)
     unZipFile(TMP_FILE)
     removeFile(TMP_FILE)
+    print(' ')
 
 
 def readGameKey(gameName):
@@ -135,7 +145,7 @@ def readGameKey(gameName):
 
 
 def decryptFile(gameName):
-    print(f"\nDecrypting {gameName}...")
+    print(f"\nDecrypting {gameName} using PS3Dec ...")
     decrypted_key = readGameKey(gameName)
     if decrypted_key is None:
         print("Error getting decrypting game key :(\n")
@@ -150,11 +160,11 @@ def downloadPS3Element(element):
     link = element['link']
     title = element['title'].replace(".zip", "")
 
-    print(f"\nDownloading {title}")
+    print(f"\nSelected {title}\n")
 
     downloadAndUnzip(PS3_ISOS_URL + link, True)
     downloadAndUnzip(PS3_KEYS_URL + link, False)
-    print(f'{title} downloaded :)')
+    print(f'\n{title} downloaded :)')
     decryptFile(title)
 
 
@@ -173,7 +183,7 @@ def main():
 
         if filtered_list_len > 0:
             printList(filtered_list)
-            print(f'Enter PS3 title number[1-{filtered_list_len}]: ', end='')
+            print(f'Enter PS3 title number [1-{filtered_list_len}]: ', end='')
             file_number_input = input()
 
             try:
