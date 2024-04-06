@@ -5,6 +5,8 @@ import time
 
 import requests
 from bs4 import BeautifulSoup
+from tqdm import tqdm
+
 
 from zipfile import ZipFile
 
@@ -83,46 +85,22 @@ def filterList(_list, search):
     return filtered_list
 
 
-def printProgressPercentage(current, total):
-    current_percentage = f"{int(current * 100 / total)}".rjust(3)
-    total_characters_length = len(f"{total}")
-    current_value_string = f"{current}".rjust(total_characters_length)
-    return f"{current_value_string}/{total} ({current_percentage} % )"
-
-
-def printProgressBar(current, total, characters=50):
-    current_percentage = current / total
-    done = int(characters * current_percentage)
-    progress_bar = "\r[%s>%s]" % ('=' * done, ' ' * (characters - done)) if current_percentage < 0.99 else "\r[%s]" % (
-                '=' * (characters + 1))
-    sys.stdout.write(f"{progress_bar} {printProgressPercentage(current, total)}")
-    sys.stdout.flush()
-
-
-def downloadFileWithProgress(link, name):
+def downloadFile(link, name, desc):
     with open(name, "wb") as newFile:
         response = requests.get(link, stream=True)
-        total_length = response.headers.get('content-length')
-        if total_length is None:  # no content length header
+        total_size = int(response.headers.get('content-length', 0))
+        block_size = 1024
+
+        if total_size is None:  # no content length header
             newFile.write(response.content)
         else:
-            dl = 0
-            total_length = int(total_length)
-            for data in response.iter_content(chunk_size=4096):
-                dl += len(data)
-                newFile.write(data)
-                printProgressBar(dl, total_length)
-            print('')
+            with tqdm(total=total_size, unit="B", unit_scale=True, desc=desc) as progress_bar:
+               for data in response.iter_content(block_size):
+                    progress_bar.update(len(data))
+                    newFile.write(data)
 
-
-def downloadNormalFile(link, name):
-    response = requests.get(link)
-    with open(name, "wb") as newFile:
-        newFile.write(response.content)
-
-
-def downloadFile(link, name, withProgress):
-    (downloadFileWithProgress if withProgress else downloadNormalFile)(link, name)
+            if total_size != 0 and progress_bar.n != total_size:
+                raise RuntimeError("Could not download file")
 
 
 def unZipFile(fileRoute):
@@ -139,8 +117,7 @@ def removeFile(fileRoute):
 
 def downloadAndUnzip(route, isISO):
     file_type_text = "ISO" if isISO else "Key"
-    print(f"Downloading {file_type_text} file...")
-    downloadFile(route, TMP_FILE, isISO)
+    downloadFile(route, TMP_FILE, f"Downloading {file_type_text} file: ")
     print(f'Unzipping...\n')
     unZipFile(TMP_FILE)
     removeFile(TMP_FILE)
