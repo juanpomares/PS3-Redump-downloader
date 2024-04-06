@@ -64,13 +64,20 @@ def printList(_list):
         print(f"{index + 1}. {element['title']} ({element['size']})")
     print('')
 
+def titleContainsWords(title, searches):
+    for search in searches:        
+        if search not in title:
+            return False
+        
+    return True
+
 
 def filterList(_list, search):
-    search_input = search.lower()
+    searches = search.strip().lower().split(" ")
     filtered_list = []
 
     for element in _list:
-        if search_input in element['title'].lower():
+        if titleContainsWords(element['title'].lower(), searches):
             filtered_list.append(element)
 
     return filtered_list
@@ -189,7 +196,7 @@ def main():
 
         if filtered_list_len > 0:
             printList(filtered_list)
-            print('Enter PS3 number: ', end='')
+            print(f'Enter PS3 title number[1-{filtered_list_len}]: ', end='')
             file_number_input = input()
 
             try:
@@ -205,7 +212,7 @@ def main():
             except ValueError:
                 search_input = file_number_input
             except Exception as e:
-                print(e)
+                print(e, end='\n\n')
 
         else:
             print('No elements found \n')
