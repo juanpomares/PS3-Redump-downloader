@@ -5,3 +5,6 @@
 *.dkey
 
 output
+
+ps3dec.exe
+vcomp100.dll
