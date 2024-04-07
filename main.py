@@ -11,7 +11,6 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 from tqdm.utils import CallbackIOWrapper
 
-
 PS3_ISOS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/'
 PS3_KEYS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203%20-%20Disc%20Keys%20TXT/'
 FILE_JSON_URL = 'listPS3Titles.json'
@@ -68,11 +67,12 @@ def printList(_list):
         print(f"{index + 1}. {element['title']} ({element['size']})")
     print('')
 
+
 def titleContainsWords(title, searches):
-    for search in searches:        
+    for search in searches:
         if search not in title:
             return False
-        
+
     return True
 
 
@@ -86,6 +86,7 @@ def filterList(_list, search):
 
     return filtered_list
 
+
 # Original code from https://stackoverflow.com/a/37573701
 def downloadFile(link, name):
     with open(name, "wb") as newFile:
@@ -96,21 +97,23 @@ def downloadFile(link, name):
         if total_size is None:  # no content length header
             newFile.write(response.content)
         else:
-            with tqdm(total=total_size, unit="B", unit_scale=True,  unit_divisor=1024, desc=" - Downloading: ", ascii=' █') as progress_bar:
-               for data in response.iter_content(block_size):
+            with tqdm(total=total_size, unit="B", unit_scale=True, unit_divisor=1024, desc=" - Downloading: ",
+                      ascii=' █') as progress_bar:
+                for data in response.iter_content(block_size):
                     progress_bar.update(len(data))
                     newFile.write(data)
 
             if total_size != 0 and progress_bar.n != total_size:
                 raise RuntimeError("Could not download file")
 
+
 # Original code from https://stackoverflow.com/a/73694796
 def unZipFile(fzip):
     dest = Path('.').expanduser()
     with zipfile.ZipFile(fzip) as zipf, tqdm(
-        desc=' -  Extracting: ', unit="B", unit_scale=True, unit_divisor=1024,
-        total=sum(getattr(i, "file_size", 0) for i in zipf.infolist()),
-        ascii=' █'
+            desc=' -  Extracting: ', unit="B", unit_scale=True, unit_divisor=1024,
+            total=sum(getattr(i, "file_size", 0) for i in zipf.infolist()),
+            ascii=' █'
     ) as pbar:
         for i in zipf.infolist():
             if not getattr(i, "file_size", 0):  # directory
@@ -168,8 +171,8 @@ def decryptFile(gameName):
     command = f'ps3dec d key {decrypted_key} "{gameName}.iso" "{gameName}_decrypted.iso"'
     os.system(command)
 
-    decrypted_file=f'{gameName}_decrypted.iso'
-    print(f"Generated '{decrypted_file}'...\n");
+    decrypted_file = f'{gameName}_decrypted.iso'
+    print(f"Generated '{decrypted_file}'...\n")
     openExplorerFile(decrypted_file)
 
 
