@@ -2,6 +2,7 @@ import json
 import os
 from pathlib import Path
 from shutil import copyfileobj
+import subprocess
 import time
 import zipfile
 
@@ -145,6 +146,18 @@ def readGameKey(gameName):
         return None
 
 
+def openExplorerFile(fileName):
+    file_path = os.path.join('.', fileName)
+
+    if os.path.exists(file_path):
+        if os.name == 'nt':  # Windows Systems
+            subprocess.Popen(['explorer', '/select,', file_path])
+        elif os.name == 'posix':  # Unix Systems (Linux, macOS)
+            subprocess.Popen(['xdg-open', '--select', file_path])
+    else:
+        print(f"Error opening {fileName}.\n")
+
+
 def decryptFile(gameName):
     print(f"\nDecrypting {gameName} using PS3Dec ...")
     decrypted_key = readGameKey(gameName)
@@ -154,7 +167,10 @@ def decryptFile(gameName):
 
     command = f'ps3dec d key {decrypted_key} "{gameName}.iso" "{gameName}_decrypted.iso"'
     os.system(command)
-    print(f"Generated '{gameName}_decrypted.iso'...\n")
+
+    decrypted_file=f'{gameName}_decrypted.iso'
+    print(f"Generated '{decrypted_file}'...\n");
+    openExplorerFile(decrypted_file)
 
 
 def downloadPS3Element(element):
