@@ -10,20 +10,20 @@ PS3 Redump Downloader is a Python console application designed to simplify the p
 
 #### Easy Installation
 
-1. Download the **[latest release version](https://github.com/juanpomares/PS3-Redump-downloader/releases/download/0.1.1/PS3-Redump-downloader-0.1.1.zip)**.
+1. Download the **[latest release version](https://github.com/juanpomares/PS3-Redump-downloader/releases/download/0.1.2/PS3-Redump-downloader-0.1.2.zip)**.
 2. Extract the downloaded zip file and execute **PS3RedumpDownloader.exe**.
 
 #### Manual Download
 
 1. Download **PS3Dec** (a utility used to decrypt PS3 ISO files). You can obtain the Windows executable from **[ConsoleMods](https://consolemods.org/wiki/File:PS3DecR5.7z)** or compile the [PS3Dec project by al3xtjames](https://github.com/al3xtjames/PS3Dec/tree/master).
-2. Download the **[latest release version of PS3RedumpDownloader.exe](https://github.com/juanpomares/PS3-Redump-downloader/releases/download/0.1.1/PS3RedumpDownloader.exe)** from this project.
+2. Download the **[latest release version of PS3RedumpDownloader.exe](https://github.com/juanpomares/PS3-Redump-downloader/releases/download/0.1.2/PS3RedumpDownloader.exe)** from this project.
 3. Execute **PS3RedumpDownloader.exe**.
 
 ### Other Operating Systems
 
 1. Download and compile the [PS3Dec project by al3xtjames](https://github.com/al3xtjames/PS3Dec/tree/master).
 2. Clone this repository in the same folder.
-3. Install the required Python packages requests and BeautifulSoup using pip: `pip install requests beautifulsoup4`.
+3. Install the required Python packages requests and BeautifulSoup using pip: `pip install requests beautifulsoup4 tqdm`.
 4. Execute `python main.py`.
 
 ---
