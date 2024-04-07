@@ -95,7 +95,7 @@ def downloadFile(link, name):
         if total_size is None:  # no content length header
             newFile.write(response.content)
         else:
-            with tqdm(total=total_size, unit="B", unit_scale=True,  unit_divisor=1024, desc=" - Downloading: ") as progress_bar:
+            with tqdm(total=total_size, unit="B", unit_scale=True,  unit_divisor=1024, desc=" - Downloading: ", ascii=' █') as progress_bar:
                for data in response.iter_content(block_size):
                     progress_bar.update(len(data))
                     newFile.write(data)
@@ -109,6 +109,7 @@ def unZipFile(fzip):
     with zipfile.ZipFile(fzip) as zipf, tqdm(
         desc=' -  Extracting: ', unit="B", unit_scale=True, unit_divisor=1024,
         total=sum(getattr(i, "file_size", 0) for i in zipf.infolist()),
+        ascii=' █'
     ) as pbar:
         for i in zipf.infolist():
             if not getattr(i, "file_size", 0):  # directory
