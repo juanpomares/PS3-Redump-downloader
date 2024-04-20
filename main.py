@@ -14,7 +14,7 @@ from tqdm.utils import CallbackIOWrapper
 PS3_ISOS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/'
 PS3_KEYS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203%20-%20Disc%20Keys%20TXT/'
 FILE_JSON_URL = 'listPS3Titles.json'
-TMP_FILE = 'tmp.zip'
+
 
 
 def getPS3List():
@@ -130,8 +130,10 @@ def removeFile(fileRoute):
         print(f'Error removing {fileRoute}')
 
 
-def downloadAndUnzip(route, isISO):
-    print(" # " + ("ISO" if isISO else "Key") + " file...")
+def downloadAndUnzip(route, title, isISO):
+    isISO_str="ISO" if isISO else "Key";
+    TMP_FILE=f"{title}_{isISO_str}.zip"
+    print(f" # {isISO_str} file...")
     downloadFile(route, TMP_FILE)
     unZipFile(TMP_FILE)
     removeFile(TMP_FILE)
@@ -182,8 +184,8 @@ def downloadPS3Element(element):
 
     print(f"\nSelected {title}\n")
 
-    downloadAndUnzip(PS3_ISOS_URL + link, True)
-    downloadAndUnzip(PS3_KEYS_URL + link, False)
+    downloadAndUnzip(PS3_ISOS_URL + link, title, True)
+    downloadAndUnzip(PS3_KEYS_URL + link, title, False)
     print(f'\n{title} downloaded :)')
     decryptFile(title)
 
