@@ -16,8 +16,8 @@ PS3_ISOS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%20
 PS3_KEYS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203%20-%20Disc%20Keys%20TXT/'
 LIST_FILES_JSON_NAME = 'listPS3Titles.json'
 
-TMP_FOLDER_PATHNAME = ''
 TMP_FOLDER_NAME = 'tmp'
+TMP_FOLDER_PATHNAME = ''
 
 def getPS3List():
     JSON_FILE_PATH=os.path.join(TMP_FOLDER_PATHNAME, LIST_FILES_JSON_NAME)
@@ -219,7 +219,8 @@ def checkFolder(folderPath):
         sys.exit(-1)
 
 def checkWorkingFolders():
-    CURRENT_DIR=os.path.dirname(__file__) 
+    CURRENT_DIR='.'
+    global TMP_FOLDER_PATHNAME
     TMP_FOLDER_PATHNAME=os.path.join(CURRENT_DIR, TMP_FOLDER_NAME);
 
     checkFolder(TMP_FOLDER_NAME)    
