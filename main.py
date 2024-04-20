@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from shutil import copyfileobj
 import subprocess
+import sys
 import time
 import zipfile
 
@@ -15,7 +16,9 @@ PS3_ISOS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%20
 PS3_KEYS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203%20-%20Disc%20Keys%20TXT/'
 FILE_JSON_URL = 'listPS3Titles.json'
 
-
+CURRENT_DIR=os.path.dirname(__file__) 
+TMP_FOLDER_NAME = 'tmp'
+TMP_FOLDER_PATHNAME = os.path.join(CURRENT_DIR, TMP_FOLDER_NAME)
 
 def getPS3List():
     try:
@@ -197,8 +200,27 @@ def downloadPS3Element(element):
     print(f'\n{title} downloaded :)')
     decryptFile(title)
 
+def createFolder(folderPath):
+    try:
+        os.mkdir(folderPath)
+    except OSError as error:
+        print(f"Error creating 'tmp' folder", end='\n\n')
+        sys.exit(-1)
+
+def checkFolder(folderPath):
+    if not os.path.exists(folderPath):
+        createFolder(folderPath)
+    elif not os.path.isdir(folderPath):
+        print('Please remove the file named as tmp', end='\n\n')
+        sys.exit(-1)
+
+def checkWorkingFolders():
+    checkFolder(TMP_FOLDER_NAME)    
+
 
 def main():
+    checkWorkingFolders()
+
     list_titles = getPS3List()
     print('\n', end='')
 
