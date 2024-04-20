@@ -162,6 +162,13 @@ def openExplorerFile(fileName):
     else:
         print(f"Error opening {fileName}.\n")
 
+def renameISOFile(title):
+    oldName=f"{title}.iso"
+    newName=f"{title}_original.iso"
+    try:
+        os.rename(oldName, newName)
+    except:
+        print(f'Error renaming ISO file')
 
 def decryptFile(gameName):
     print(f"\nDecrypting {gameName} using PS3Dec ...")
@@ -169,11 +176,12 @@ def decryptFile(gameName):
     if decrypted_key is None:
         print("Error getting decrypting game key :(\n")
         return
-
-    command = f'ps3dec d key {decrypted_key} "{gameName}.iso" "{gameName}_decrypted.iso"'
+    
+    renameISOFile(gameName)
+    command = f'ps3dec d key {decrypted_key} "{gameName}_original.iso" "{gameName}.iso"'
     os.system(command)
 
-    decrypted_file = f'{gameName}_decrypted.iso'
+    decrypted_file = f'{gameName}.iso'
     print(f"Generated '{decrypted_file}'...\n")
     openExplorerFile(decrypted_file)
 
