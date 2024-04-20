@@ -135,6 +135,10 @@ def removeFile(fileRoute):
     except:
         print(f'Error removing {fileRoute}')
 
+def removeFiles(files):
+    for file in files:
+        removeFile(file)
+
 
 def downloadAndUnzip(route, title, isISO):
     isISO_str="ISO" if isISO else "Key";
@@ -184,6 +188,9 @@ def decryptFile(gameName):
 
     decrypted_file = f'{gameName}.iso'
     print(f"Generated '{decrypted_file}'...\n")
+
+    removeFiles([originalGamePathName, keyRouteName])
+
     openExplorerFile(decrypted_file)
 
 
