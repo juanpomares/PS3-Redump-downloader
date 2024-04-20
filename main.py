@@ -14,20 +14,23 @@ from tqdm.utils import CallbackIOWrapper
 
 PS3_ISOS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/'
 PS3_KEYS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203%20-%20Disc%20Keys%20TXT/'
-FILE_JSON_URL = 'listPS3Titles.json'
+LIST_FILES_JSON_NAME = 'listPS3Titles.json'
 
 CURRENT_DIR=os.path.dirname(__file__) 
 TMP_FOLDER_NAME = 'tmp'
 TMP_FOLDER_PATHNAME = os.path.join(CURRENT_DIR, TMP_FOLDER_NAME)
 
 def getPS3List():
+    JSON_FILE_PATH=os.path.join(TMP_FOLDER_PATHNAME, LIST_FILES_JSON_NAME)
+    JSON_FILE_NAME=f'{TMP_FOLDER_NAME}/{LIST_FILES_JSON_NAME}'
+    
     try:
-        with open(FILE_JSON_URL, 'r') as file:
-            print(f'{FILE_JSON_URL} exists...')
+        with open(JSON_FILE_PATH, 'r') as file:
+            print(f'{LIST_FILES_JSON_NAME} exists...')
             list_files = json.load(file)
             list_files_len = len(list_files)
             if list_files_len > 0:
-                print(f'{FILE_JSON_URL} has {list_files_len} titles')
+                print(f'{LIST_FILES_JSON_NAME} has {list_files_len} titles')
                 return list_files
     except:
         pass
@@ -55,12 +58,11 @@ def getPS3List():
 
     print(f'Downloaded {len(available_ps3_titles)} titles')
 
-    print('Saving in file...')
-    with open(FILE_JSON_URL, 'w') as file:
+    with open(JSON_FILE_PATH, 'w') as file:
         file.write(json.dumps(available_ps3_titles))
         file.close()
 
-    print(f'Saved in {FILE_JSON_URL}')
+    print(f'Saved in {JSON_FILE_NAME}')
 
     return available_ps3_titles
 
@@ -112,7 +114,8 @@ def downloadFile(link, name):
 
 # Original code from https://stackoverflow.com/a/73694796
 def unZipFile(fzip):
-    dest = Path('.').expanduser()
+    dest = Path(fzip).parent
+
     with zipfile.ZipFile(fzip) as zipf, tqdm(
             desc=' -  Extracting: ', unit="B", unit_scale=True, unit_divisor=1024,
             total=sum(getattr(i, "file_size", 0) for i in zipf.infolist()),
@@ -135,7 +138,9 @@ def removeFile(fileRoute):
 
 def downloadAndUnzip(route, title, isISO):
     isISO_str="ISO" if isISO else "Key";
-    TMP_FILE=f"{title}_{isISO_str}.zip"
+    NEW_FILE_NAME=f"{title}_{isISO_str}.zip"
+    TMP_FILE=os.path.join(TMP_FOLDER_PATHNAME, NEW_FILE_NAME)
+
     print(f" # {isISO_str} file...")
     downloadFile(route, TMP_FILE)
     unZipFile(TMP_FILE)
@@ -143,10 +148,9 @@ def downloadAndUnzip(route, title, isISO):
     print(' ')
 
 
-def readGameKey(gameName):
-    game_key_route = f"{gameName}.dkey"
+def readGameKey(gameKeyRoute):
     try:
-        with open(game_key_route, 'r') as file:
+        with open(gameKeyRoute, 'r') as file:
             key = file.read()
             return key.strip()
     except Exception as e:
@@ -165,23 +169,17 @@ def openExplorerFile(fileName):
     else:
         print(f"Error opening {fileName}.\n")
 
-def renameISOFile(title):
-    oldName=f"{title}.iso"
-    newName=f"{title}_original.iso"
-    try:
-        os.rename(oldName, newName)
-    except:
-        print(f'Error renaming ISO file')
-
 def decryptFile(gameName):
+    keyRouteName= os.path.join(TMP_FOLDER_PATHNAME, f"{gameName}.dkey")
+    originalGamePathName=os.path.join(TMP_FOLDER_PATHNAME, f"{gameName}.iso" )
+
     print(f"\nDecrypting {gameName} using PS3Dec ...")
-    decrypted_key = readGameKey(gameName)
+    decrypted_key = readGameKey(keyRouteName)
     if decrypted_key is None:
         print("Error getting decrypting game key :(\n")
         return
     
-    renameISOFile(gameName)
-    command = f'ps3dec d key {decrypted_key} "{gameName}_original.iso" "{gameName}.iso"'
+    command = f'ps3dec d key {decrypted_key} "{originalGamePathName}" "{gameName}.iso"'
     os.system(command)
 
     decrypted_file = f'{gameName}.iso'
