@@ -19,12 +19,13 @@ LIST_FILES_JSON_NAME = 'listPS3Titles.json'
 TMP_FOLDER_NAME = 'tmp'
 TMP_FOLDER_PATHNAME = ''
 
+
 def getPS3List():
-    JSON_FILE_PATH=os.path.join(TMP_FOLDER_PATHNAME, LIST_FILES_JSON_NAME)
-    JSON_FILE_NAME=f'{TMP_FOLDER_NAME}/{LIST_FILES_JSON_NAME}'
-    
+    json_file_path = os.path.join(TMP_FOLDER_PATHNAME, LIST_FILES_JSON_NAME)
+    json_file_name = f'{TMP_FOLDER_NAME}/{LIST_FILES_JSON_NAME}'
+
     try:
-        with open(JSON_FILE_PATH, 'r') as file:
+        with open(json_file_path, 'r') as file:
             print(f'{LIST_FILES_JSON_NAME} exists...')
             list_files = json.load(file)
             list_files_len = len(list_files)
@@ -57,11 +58,11 @@ def getPS3List():
 
     print(f'Downloaded {len(available_ps3_titles)} titles')
 
-    with open(JSON_FILE_PATH, 'w') as file:
+    with open(json_file_path, 'w') as file:
         file.write(json.dumps(available_ps3_titles))
         file.close()
 
-    print(f'Saved in {JSON_FILE_NAME}')
+    print(f'Saved in {json_file_name}')
 
     return available_ps3_titles
 
@@ -134,20 +135,21 @@ def removeFile(fileRoute):
     except:
         print(f'Error removing {fileRoute}')
 
+
 def removeFiles(files):
     for file in files:
         removeFile(file)
 
 
 def downloadAndUnzip(route, title, isISO):
-    isISO_str="ISO" if isISO else "Key";
-    NEW_FILE_NAME=f"{title}_{isISO_str}.zip"
-    TMP_FILE=os.path.join(TMP_FOLDER_PATHNAME, NEW_FILE_NAME)
+    is_iso_str = "ISO" if isISO else "Key"
+    new_file_name = f"{title}_{is_iso_str}.zip"
+    tmp_file = os.path.join(TMP_FOLDER_PATHNAME, new_file_name)
 
-    print(f" # {isISO_str} file...")
-    downloadFile(route, TMP_FILE)
-    unZipFile(TMP_FILE)
-    removeFile(TMP_FILE)
+    print(f" # {is_iso_str} file...")
+    downloadFile(route, tmp_file)
+    unZipFile(tmp_file)
+    removeFile(tmp_file)
     print(' ')
 
 
@@ -172,23 +174,24 @@ def openExplorerFile(fileName):
     else:
         print(f"Error opening {fileName}.\n")
 
+
 def decryptFile(gameName):
-    keyRouteName= os.path.join(TMP_FOLDER_PATHNAME, f"{gameName}.dkey")
-    originalGamePathName=os.path.join(TMP_FOLDER_PATHNAME, f"{gameName}.iso" )
+    key_route_name = os.path.join(TMP_FOLDER_PATHNAME, f"{gameName}.dkey")
+    original_game_path_name = os.path.join(TMP_FOLDER_PATHNAME, f"{gameName}.iso")
 
     print(f"\nDecrypting {gameName} using PS3Dec ...")
-    decrypted_key = readGameKey(keyRouteName)
+    decrypted_key = readGameKey(key_route_name)
     if decrypted_key is None:
         print("Error getting decrypting game key :(\n")
         return
-    
-    command = f'ps3dec d key {decrypted_key} "{originalGamePathName}" "{gameName}.iso"'
+
+    command = f'ps3dec d key {decrypted_key} "{original_game_path_name}" "{gameName}.iso"'
     os.system(command)
 
     decrypted_file = f'{gameName}.iso'
     print(f"Generated '{decrypted_file}'...\n")
 
-    removeFiles([originalGamePathName, keyRouteName])
+    removeFiles([original_game_path_name, key_route_name])
 
     openExplorerFile(decrypted_file)
 
@@ -204,12 +207,14 @@ def downloadPS3Element(element):
     print(f'\n{title} downloaded :)')
     decryptFile(title)
 
+
 def createFolder(folderPath):
     try:
         os.mkdir(folderPath)
     except OSError as error:
         print(f"Error creating 'tmp' folder", end='\n\n')
         sys.exit(-1)
+
 
 def checkFolder(folderPath):
     if not os.path.exists(folderPath):
@@ -218,12 +223,13 @@ def checkFolder(folderPath):
         print('Please remove the file named as tmp', end='\n\n')
         sys.exit(-1)
 
-def checkWorkingFolders():
-    CURRENT_DIR='.'
-    global TMP_FOLDER_PATHNAME
-    TMP_FOLDER_PATHNAME=os.path.join(CURRENT_DIR, TMP_FOLDER_NAME);
 
-    checkFolder(TMP_FOLDER_NAME)    
+def checkWorkingFolders():
+    current_dir = '.'
+    global TMP_FOLDER_PATHNAME
+    TMP_FOLDER_PATHNAME = os.path.join(current_dir, TMP_FOLDER_NAME)
+
+    checkFolder(TMP_FOLDER_NAME)
 
 
 def main():
