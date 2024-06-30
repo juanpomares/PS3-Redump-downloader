@@ -12,12 +12,16 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 from tqdm.utils import CallbackIOWrapper
 
-PS3_ISOS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/'
-PS3_KEYS_URL = 'https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203%20-%20Disc%20Keys%20TXT/'
+PS3_ISOS_URL = 'https://myrient.erista.me/files/Redump/Sony - PlayStation 3/'
+PS3_KEYS_URL = 'https://myrient.erista.me/files/Redump/Sony - PlayStation 3 - Disc Keys TXT/'
 LIST_FILES_JSON_NAME = 'listPS3Titles.json'
 
 TMP_FOLDER_NAME = 'tmp'
+TMP_ISO_FOLDER_NAME = 'iso_files'
+TMP_KEY_FOLDER_NAME = 'key_files'
 TMP_FOLDER_PATHNAME = ''
+TMP_ISO_FOLDER_PATHNAME = ''
+TMP_KEY_FOLDER_PATHNAME = ''
 
 
 def getPS3List():
@@ -143,8 +147,8 @@ def removeFiles(files):
 
 def downloadAndUnzip(route, title, isISO):
     is_iso_str = "ISO" if isISO else "Key"
-    new_file_name = f"{title}_{is_iso_str}.zip"
-    tmp_file = os.path.join(TMP_FOLDER_PATHNAME, new_file_name)
+    new_file_name = f"{title}.zip"
+    tmp_file = os.path.join(TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME, new_file_name)
 
     print(f" # {is_iso_str} file...")
     downloadFile(route, tmp_file)
@@ -176,8 +180,8 @@ def openExplorerFile(fileName):
 
 
 def decryptFile(gameName):
-    key_route_name = os.path.join(TMP_FOLDER_PATHNAME, f"{gameName}.dkey")
-    original_game_path_name = os.path.join(TMP_FOLDER_PATHNAME, f"{gameName}.iso")
+    key_route_name = os.path.join(TMP_KEY_FOLDER_PATHNAME, f"{gameName}.dkey")
+    original_game_path_name = os.path.join(TMP_ISO_FOLDER_PATHNAME, f"{gameName}.iso")
 
     print(f"\nDecrypting {gameName} using PS3Dec ...")
     decrypted_key = readGameKey(key_route_name)
@@ -226,10 +230,18 @@ def checkFolder(folderPath):
 
 def checkWorkingFolders():
     current_dir = '.'
+
     global TMP_FOLDER_PATHNAME
     TMP_FOLDER_PATHNAME = os.path.join(current_dir, TMP_FOLDER_NAME)
+    checkFolder(TMP_FOLDER_PATHNAME)
 
-    checkFolder(TMP_FOLDER_NAME)
+    global TMP_ISO_FOLDER_PATHNAME
+    TMP_ISO_FOLDER_PATHNAME = os.path.join(current_dir, TMP_FOLDER_NAME, TMP_ISO_FOLDER_NAME)
+    checkFolder(TMP_ISO_FOLDER_PATHNAME)
+
+    global TMP_KEY_FOLDER_PATHNAME
+    TMP_KEY_FOLDER_PATHNAME = os.path.join(current_dir, TMP_FOLDER_NAME, TMP_KEY_FOLDER_NAME)
+    checkFolder(TMP_KEY_FOLDER_PATHNAME)
 
 
 def main():
