@@ -95,26 +95,61 @@ def filterList(_list, search):
 
     return filtered_list
 
+def getFileSize(link):
+
+    response = requests.get(link, headers={"Range": "bytes=0-1"})
+    try:
+        total_size = int(response.headers.get('content-range').split('/')[1])
+    except Exception as e:
+        total_size = None
+
+    return total_size
 
 # Original code from https://stackoverflow.com/a/37573701
-def downloadFile(link, name):
-    with open(name, "wb") as newFile:
-        response = requests.get(link, stream=True, timeout=300, verify=True)
-        total_size = int(response.headers.get('content-length', 0))
-        block_size = 1024
+def downloadFile(link, name, max_retries=5, delay=5):
+    total_size = getFileSize(link)
+    
+    retries=0
+    while retries < max_retries:
+        headers={}
 
-        if total_size is None:  # no content length header
-            newFile.write(response.content)
-        else:
-            with tqdm(total=total_size, unit="B", unit_scale=True, unit_divisor=1024, desc=" - Downloading: ",
-                      ascii=' █') as progress_bar:
-                for data in response.iter_content(block_size):
-                    progress_bar.update(len(data))
-                    newFile.write(data)
+        first_byte=0
+        if total_size is not None and os.path.exists(name):
+            first_byte = os.path.getsize(name)
+            if first_byte >= total_size:
+                print(f"The files {name} is downloaded previosly.")
+                return
+            headers = {"Range": f"bytes={first_byte}-{total_size}"}
 
-            if total_size != 0 and progress_bar.n != total_size:
-                raise RuntimeError("Could not download file")
 
+        try:
+            with requests.get(link, headers=headers, stream=True, timeout=60, verify=True) as response, open(name, "ab") as newFile:
+                block_size = 1024
+                if total_size is None:  # no content length header
+                    newFile.write(response.content)
+                else:
+                    with tqdm(total=total_size, unit="B", unit_scale=True, unit_divisor=block_size, desc=" - Downloading: ",
+                        ascii=' █', initial=first_byte) as progress_bar:
+                        for data in response.iter_content(block_size):
+                            progress_bar.update(len(data))
+                            newFile.write(data)
+
+                        if total_size != 0 and progress_bar.n != total_size:
+                            raise RuntimeError("Could not download file")
+                        else:
+                            break
+                        
+        except (requests.ConnectionError, requests.Timeout, RuntimeError) as e:
+            retries += 1
+            print(f"Connection error! Try again ({retries}/{max_retries}). Waiting {delay} secs...")
+            time.sleep(delay)
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            break
+
+  
+    if retries == max_retries:
+        raise RuntimeError(f"Failed to download file after {max_retries} attempts.")
 
 # Original code from https://stackoverflow.com/a/73694796
 def unZipFile(fzip):
@@ -144,13 +179,19 @@ def removeFiles(files):
     for file in files:
         removeFile(file)
 
+def downloadAndUnzip(route, title, isISO):    
+    isISO_String="ISO" if isISO else "Key"
+    print(f" # {isISO_String} file...")
 
-def downloadAndUnzip(route, title, isISO):
-    is_iso_str = "ISO" if isISO else "Key"
+    unzippedFileName = f"{title}.{'iso' if isISO else 'dkey'}"
+        
+    if os.path.exists(os.path.join(TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME, unzippedFileName)):
+        print(' - File previosly downloaded :)', end='\n\n')
+        return
+
     new_file_name = f"{title}.zip"
     tmp_file = os.path.join(TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME, new_file_name)
 
-    print(f" # {is_iso_str} file...")
     downloadFile(route, tmp_file)
     unZipFile(tmp_file)
     removeFile(tmp_file)
