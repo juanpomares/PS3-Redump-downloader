@@ -90,24 +90,26 @@ def filterList(_list, search):
 
     return filtered_list
 
+
 def getFileSize(link):
     response = requests.get(link, headers={"Range": "bytes=0-1"})
     try:
         total_size = int(response.headers.get('content-range').split('/')[1])
-    except Exception as e:
+    except:
         total_size = None
 
     return total_size
 
+
 # Original code from https://stackoverflow.com/a/37573701
 def downloadFile(link, name):
     total_size = getFileSize(link)
-    
-    retries=0
-    while retries < config["MAX_RETRIES"]:
-        headers={}
 
-        first_byte=0
+    retries = 0
+    while retries < config["MAX_RETRIES"]:
+        headers = {}
+
+        first_byte = 0
         if total_size is not None and os.path.exists(name):
             first_byte = os.path.getsize(name)
             if first_byte >= total_size:
@@ -115,15 +117,16 @@ def downloadFile(link, name):
                 return
             headers = {"Range": f"bytes={first_byte}-{total_size}"}
 
-
         try:
-            with requests.get(link, headers=headers, stream=True, timeout=config["TIMEOUT_REQUEST"], verify=True) as response, open(name, "ab") as newFile:
+            with requests.get(link, headers=headers, stream=True, timeout=config["TIMEOUT_REQUEST"],
+                              verify=True) as response, open(name, "ab") as newFile:
                 block_size = 1024
                 if total_size is None:  # no content length header
                     newFile.write(response.content)
                 else:
-                    with tqdm(total=total_size, unit="B", unit_scale=True, unit_divisor=block_size, desc=" - Downloading: ",
-                        ascii=' █', initial=first_byte) as progress_bar:
+                    with tqdm(total=total_size, unit="B", unit_scale=True, unit_divisor=block_size,
+                              desc=" - Downloading: ",
+                              ascii=' █', initial=first_byte) as progress_bar:
                         for data in response.iter_content(block_size):
                             progress_bar.update(len(data))
                             newFile.write(data)
@@ -132,18 +135,19 @@ def downloadFile(link, name):
                             raise RuntimeError("Could not download file")
                         else:
                             break
-                        
-        except (requests.ConnectionError, requests.Timeout, RuntimeError) as e:
+
+        except (requests.ConnectionError, requests.Timeout, RuntimeError):
             retries += 1
-            print(f"Connection error! Try again ({retries}/{config['MAX_RETRIES']}). Waiting {config['DELAY_BETWEEN_RETRIES']} secs...")
+            print(
+                f"Connection error! Try again ({retries}/{config['MAX_RETRIES']}). Waiting {config['DELAY_BETWEEN_RETRIES']} secs...")
             time.sleep(config['DELAY_BETWEEN_RETRIES'])
         except Exception as e:
             print(f"Unexpected error: {e}")
             break
 
-  
     if retries == config['MAX_RETRIES']:
         raise RuntimeError(f"Failed to download file after {config['MAX_RETRIES']} attempts.")
+
 
 # Original code from https://stackoverflow.com/a/73694796
 def unZipFile(fzip):
@@ -173,13 +177,14 @@ def removeFiles(files):
     for file in files:
         removeFile(file)
 
-def downloadAndUnzip(route, title, isISO):    
-    isISO_String="ISO" if isISO else "Key"
-    print(f" # {isISO_String} file...")
 
-    unzippedFileName = f"{title}.{'iso' if isISO else 'dkey'}"
-        
-    if os.path.exists(os.path.join(TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME, unzippedFileName)):
+def downloadAndUnzip(route, title, isISO):
+    is_iso_string = "ISO" if isISO else "Key"
+    print(f" # {is_iso_string} file...")
+
+    unzipped_file_name = f"{title}.{'iso' if isISO else 'dkey'}"
+
+    if os.path.exists(os.path.join(TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME, unzipped_file_name)):
         print(' - File previosly downloaded :)', end='\n\n')
         return
 
@@ -251,7 +256,7 @@ def createFolder(folderPath):
     try:
         os.mkdir(folderPath)
     except OSError as error:
-        print(f"Error creating '{config['TMP_FOLDER_NAME']}' folder", end='\n\n')
+        print(f"Error creating '{config['TMP_FOLDER_NAME']}' folder {error}", end='\n\n')
         sys.exit(-1)
 
 
@@ -278,31 +283,35 @@ def checkWorkingFolders():
     TMP_KEY_FOLDER_PATHNAME = os.path.join(current_dir, config['TMP_FOLDER_NAME'], config['TMP_KEY_FOLDER_NAME'])
     checkFolder(TMP_KEY_FOLDER_PATHNAME)
 
+
 def loadConfig():
-    configFile = configparser.ConfigParser(interpolation=None)
-    configFile.read('config.ini')
+    config_file_parser = configparser.ConfigParser(interpolation=None)
+    config_file_parser.read('config.ini')
 
     global config
-    config={
-        'ISO_URL': configFile.get('url', 'ISO', fallback="https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/"),
-        'KEY_URL': configFile.get('url', 'KEY', fallback="https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203%20-%20Disc%20Keys%20TXT/"),
-        
-        'LIST_FILES_JSON_NAME': configFile.get('Download', 'LIST_FILES_JSON_NAME', fallback="listPS3Titles.json"),
-        'MAX_RETRIES': configFile.getint('Download', 'MAX_RETRIES', fallback=-1),
-        'DELAY_BETWEEN_RETRIES': configFile.getint('Download', 'DELAY_BETWEEN_RETRIES', fallback=-1),
-        'TIMEOUT_REQUEST': configFile.getint('Download', 'TIMEOUT_REQUEST', fallback=-1)!=0,
+    config = {
+        'ISO_URL': config_file_parser.get('url', 'ISO',
+                                          fallback="https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/"),
+        'KEY_URL': config_file_parser.get('url', 'KEY',
+                                          fallback="https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203%20-%20Disc%20Keys%20TXT/"),
 
-        'TMP_FOLDER_NAME': configFile.get('folder', 'TMP_FOLDER_NAME', fallback="tmp"),
-        'TMP_ISO_FOLDER_NAME': configFile.get('folder', 'TMP_ISO_FOLDER_NAME', fallback="iso_files"),
-        'TMP_KEY_FOLDER_NAME': configFile.get('folder', 'TMP_KEY_FOLDER_NAME', fallback="key_files"),
+        'LIST_FILES_JSON_NAME': config_file_parser.get('Download', 'LIST_FILES_JSON_NAME',
+                                                       fallback="listPS3Titles.json"),
+        'MAX_RETRIES': config_file_parser.getint('Download', 'MAX_RETRIES', fallback=-1),
+        'DELAY_BETWEEN_RETRIES': config_file_parser.getint('Download', 'DELAY_BETWEEN_RETRIES', fallback=-1),
+        'TIMEOUT_REQUEST': config_file_parser.getint('Download', 'TIMEOUT_REQUEST', fallback=-1),
+
+        'TMP_FOLDER_NAME': config_file_parser.get('folder', 'TMP_FOLDER_NAME', fallback="tmp"),
+        'TMP_ISO_FOLDER_NAME': config_file_parser.get('folder', 'TMP_ISO_FOLDER_NAME', fallback="iso_files"),
+        'TMP_KEY_FOLDER_NAME': config_file_parser.get('folder', 'TMP_KEY_FOLDER_NAME', fallback="key_files"),
     }
 
-    if config['MAX_RETRIES'] <1:
+    if config['MAX_RETRIES'] < 1:
         config['MAX_RETRIES'] = 5
-    if config['DELAY_BETWEEN_RETRIES'] <5:
+    if config['DELAY_BETWEEN_RETRIES'] < 5:
         config['MAX_RETRIES'] = 5
-    if config['TIMEOUT_REQUEST'] <0:
-        config['TIMEOUT_REQUEST']=None
+    if config['TIMEOUT_REQUEST'] < 0:
+        config['TIMEOUT_REQUEST'] = None
 
 
 def main():
