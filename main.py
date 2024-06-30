@@ -6,41 +6,36 @@ import subprocess
 import sys
 import time
 import zipfile
+import configparser
 
 import requests
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 from tqdm.utils import CallbackIOWrapper
 
-PS3_ISOS_URL = 'https://myrient.erista.me/files/Redump/Sony - PlayStation 3/'
-PS3_KEYS_URL = 'https://myrient.erista.me/files/Redump/Sony - PlayStation 3 - Disc Keys TXT/'
-LIST_FILES_JSON_NAME = 'listPS3Titles.json'
-
-TMP_FOLDER_NAME = 'tmp'
-TMP_ISO_FOLDER_NAME = 'iso_files'
-TMP_KEY_FOLDER_NAME = 'key_files'
+config = {}
 TMP_FOLDER_PATHNAME = ''
 TMP_ISO_FOLDER_PATHNAME = ''
 TMP_KEY_FOLDER_PATHNAME = ''
 
 
 def getPS3List():
-    json_file_path = os.path.join(TMP_FOLDER_PATHNAME, LIST_FILES_JSON_NAME)
-    json_file_name = f'{TMP_FOLDER_NAME}/{LIST_FILES_JSON_NAME}'
+    json_file_path = os.path.join(TMP_FOLDER_PATHNAME, config['LIST_FILES_JSON_NAME'])
+    json_file_name = f"{config['TMP_FOLDER_NAME']}/{config['LIST_FILES_JSON_NAME']}"
 
     try:
         with open(json_file_path, 'r') as file:
-            print(f'{LIST_FILES_JSON_NAME} exists...')
+            print(f"{config['LIST_FILES_JSON_NAME']} exists...")
             list_files = json.load(file)
             list_files_len = len(list_files)
             if list_files_len > 0:
-                print(f'{LIST_FILES_JSON_NAME} has {list_files_len} titles')
+                print(f"{config['LIST_FILES_JSON_NAME']} has {list_files_len} titles")
                 return list_files
     except:
         pass
 
     print('Downloading PS3 list...')
-    ps3_titles_response = requests.get(PS3_ISOS_URL)
+    ps3_titles_response = requests.get(config['ISO_URL'])
 
     available_ps3_titles = []
 
@@ -96,7 +91,6 @@ def filterList(_list, search):
     return filtered_list
 
 def getFileSize(link):
-
     response = requests.get(link, headers={"Range": "bytes=0-1"})
     try:
         total_size = int(response.headers.get('content-range').split('/')[1])
@@ -106,11 +100,11 @@ def getFileSize(link):
     return total_size
 
 # Original code from https://stackoverflow.com/a/37573701
-def downloadFile(link, name, max_retries=5, delay=5):
+def downloadFile(link, name):
     total_size = getFileSize(link)
     
     retries=0
-    while retries < max_retries:
+    while retries < config["MAX_RETRIES"]:
         headers={}
 
         first_byte=0
@@ -123,7 +117,7 @@ def downloadFile(link, name, max_retries=5, delay=5):
 
 
         try:
-            with requests.get(link, headers=headers, stream=True, timeout=60, verify=True) as response, open(name, "ab") as newFile:
+            with requests.get(link, headers=headers, stream=True, timeout=config["TIMEOUT_REQUEST"], verify=True) as response, open(name, "ab") as newFile:
                 block_size = 1024
                 if total_size is None:  # no content length header
                     newFile.write(response.content)
@@ -141,15 +135,15 @@ def downloadFile(link, name, max_retries=5, delay=5):
                         
         except (requests.ConnectionError, requests.Timeout, RuntimeError) as e:
             retries += 1
-            print(f"Connection error! Try again ({retries}/{max_retries}). Waiting {delay} secs...")
-            time.sleep(delay)
+            print(f"Connection error! Try again ({retries}/{config['MAX_RETRIES']}). Waiting {config['DELAY_BETWEEN_RETRIES']} secs...")
+            time.sleep(config['DELAY_BETWEEN_RETRIES'])
         except Exception as e:
             print(f"Unexpected error: {e}")
             break
 
   
-    if retries == max_retries:
-        raise RuntimeError(f"Failed to download file after {max_retries} attempts.")
+    if retries == config['MAX_RETRIES']:
+        raise RuntimeError(f"Failed to download file after {config['MAX_RETRIES']} attempts.")
 
 # Original code from https://stackoverflow.com/a/73694796
 def unZipFile(fzip):
@@ -247,8 +241,8 @@ def downloadPS3Element(element):
 
     print(f"\nSelected {title}\n")
 
-    downloadAndUnzip(PS3_ISOS_URL + link, title, True)
-    downloadAndUnzip(PS3_KEYS_URL + link, title, False)
+    downloadAndUnzip(config['ISO_URL'] + link, title, True)
+    downloadAndUnzip(config['KEY_URL'] + link, title, False)
     print(f'\n{title} downloaded :)')
     decryptFile(title)
 
@@ -257,7 +251,7 @@ def createFolder(folderPath):
     try:
         os.mkdir(folderPath)
     except OSError as error:
-        print(f"Error creating 'tmp' folder", end='\n\n')
+        print(f"Error creating '{config['TMP_FOLDER_NAME']}' folder", end='\n\n')
         sys.exit(-1)
 
 
@@ -265,7 +259,7 @@ def checkFolder(folderPath):
     if not os.path.exists(folderPath):
         createFolder(folderPath)
     elif not os.path.isdir(folderPath):
-        print('Please remove the file named as tmp', end='\n\n')
+        print(f"Please remove the file named as {config['TMP_FOLDER_NAME']}", end='\n\n')
         sys.exit(-1)
 
 
@@ -273,19 +267,46 @@ def checkWorkingFolders():
     current_dir = '.'
 
     global TMP_FOLDER_PATHNAME
-    TMP_FOLDER_PATHNAME = os.path.join(current_dir, TMP_FOLDER_NAME)
+    TMP_FOLDER_PATHNAME = os.path.join(current_dir, config['TMP_FOLDER_NAME'])
     checkFolder(TMP_FOLDER_PATHNAME)
 
     global TMP_ISO_FOLDER_PATHNAME
-    TMP_ISO_FOLDER_PATHNAME = os.path.join(current_dir, TMP_FOLDER_NAME, TMP_ISO_FOLDER_NAME)
+    TMP_ISO_FOLDER_PATHNAME = os.path.join(current_dir, config['TMP_FOLDER_NAME'], config['TMP_ISO_FOLDER_NAME'])
     checkFolder(TMP_ISO_FOLDER_PATHNAME)
 
     global TMP_KEY_FOLDER_PATHNAME
-    TMP_KEY_FOLDER_PATHNAME = os.path.join(current_dir, TMP_FOLDER_NAME, TMP_KEY_FOLDER_NAME)
+    TMP_KEY_FOLDER_PATHNAME = os.path.join(current_dir, config['TMP_FOLDER_NAME'], config['TMP_KEY_FOLDER_NAME'])
     checkFolder(TMP_KEY_FOLDER_PATHNAME)
+
+def loadConfig():
+    configFile = configparser.ConfigParser(interpolation=None)
+    configFile.read('config.ini')
+
+    global config
+    config={
+        'ISO_URL': configFile.get('url', 'ISO', fallback="https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/"),
+        'KEY_URL': configFile.get('url', 'KEY', fallback="https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203%20-%20Disc%20Keys%20TXT/"),
+        
+        'LIST_FILES_JSON_NAME': configFile.get('Download', 'LIST_FILES_JSON_NAME', fallback="listPS3Titles.json"),
+        'MAX_RETRIES': configFile.getint('Download', 'MAX_RETRIES', fallback=-1),
+        'DELAY_BETWEEN_RETRIES': configFile.getint('Download', 'DELAY_BETWEEN_RETRIES', fallback=-1),
+        'TIMEOUT_REQUEST': configFile.getint('Download', 'TIMEOUT_REQUEST', fallback=-1)!=0,
+
+        'TMP_FOLDER_NAME': configFile.get('folder', 'TMP_FOLDER_NAME', fallback="tmp"),
+        'TMP_ISO_FOLDER_NAME': configFile.get('folder', 'TMP_ISO_FOLDER_NAME', fallback="iso_files"),
+        'TMP_KEY_FOLDER_NAME': configFile.get('folder', 'TMP_KEY_FOLDER_NAME', fallback="key_files"),
+    }
+
+    if config['MAX_RETRIES'] <1:
+        config['MAX_RETRIES'] = 5
+    if config['DELAY_BETWEEN_RETRIES'] <5:
+        config['MAX_RETRIES'] = 5
+    if config['TIMEOUT_REQUEST'] <0:
+        config['TIMEOUT_REQUEST']=None
 
 
 def main():
+    loadConfig()
     checkWorkingFolders()
 
     list_titles = getPS3List()
