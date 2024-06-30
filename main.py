@@ -99,7 +99,7 @@ def filterList(_list, search):
 # Original code from https://stackoverflow.com/a/37573701
 def downloadFile(link, name):
     with open(name, "wb") as newFile:
-        response = requests.get(link, stream=True)
+        response = requests.get(link, stream=True, timeout=300, verify=True)
         total_size = int(response.headers.get('content-length', 0))
         block_size = 1024
 
