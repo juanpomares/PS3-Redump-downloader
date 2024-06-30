@@ -7,6 +7,7 @@ import sys
 import time
 import zipfile
 import configparser
+import webbrowser
 
 import requests
 from bs4 import BeautifulSoup
@@ -102,7 +103,7 @@ def getFileSize(link):
 
 
 # Original code from https://stackoverflow.com/a/37573701
-def downloadFile(link, name):
+def downloadFileUsingRequest(link, name):
     total_size = getFileSize(link)
 
     retries = 0
@@ -133,8 +134,8 @@ def downloadFile(link, name):
 
                         if total_size != 0 and progress_bar.n != total_size:
                             raise RuntimeError("Could not download file")
-                        else:
-                            break
+
+                        break
 
         except (requests.ConnectionError, requests.Timeout, RuntimeError):
             retries += 1
@@ -147,6 +148,35 @@ def downloadFile(link, name):
 
     if retries == config['MAX_RETRIES']:
         raise RuntimeError(f"Failed to download file after {config['MAX_RETRIES']} attempts.")
+
+
+def downloadFileUsingNavigator(isISO, route, downloaded_file_name, zip_file, unzippedFile):
+    destination_folder = os.path.join(TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME, " ")
+
+    print(f"Opening browser with download link (${route})")
+    webbrowser.open(route)
+
+    time.sleep(5)
+    print(f"Please download the file and copy '{downloaded_file_name}' to '{destination_folder}'")
+    openExplorer(destination_folder)
+
+    time.sleep(5)
+    print("Waiting for the file to be copied...")
+    input("Press enter to start checking for the file...")
+
+    while not os.path.exists(zip_file) and not os.path.exists(unzippedFile):
+        print(f"\nFile not found!! Make sure to download and copy the file to '{destination_folder}'")
+        input("\tPress enter to check it again...")
+
+    print('')
+
+
+def downloadFile(isISO, route, downloaded_file_name, zip_file, unzippedFile):
+    download_using_navigator = config["EXTERNAL_ISO_DOWNLOAD" if isISO else "EXTERNAL_KEY_DOWNLOAD"]
+    if download_using_navigator:
+        downloadFileUsingNavigator(isISO, route, downloaded_file_name, zip_file, unzippedFile)
+    else:
+        downloadFileUsingRequest(route, zip_file)
 
 
 # Original code from https://stackoverflow.com/a/73694796
@@ -183,17 +213,21 @@ def downloadAndUnzip(route, title, isISO):
     print(f" # {is_iso_string} file...")
 
     unzipped_file_name = f"{title}.{'iso' if isISO else 'dkey'}"
+    unzipped_file_path = os.path.join(TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME, unzipped_file_name)
 
-    if os.path.exists(os.path.join(TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME, unzipped_file_name)):
-        print(' - File previosly downloaded :)', end='\n\n')
+    if os.path.exists(unzipped_file_path):
+        print(' - File previously downloaded :)', end='\n\n')
         return
 
     new_file_name = f"{title}.zip"
     tmp_file = os.path.join(TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME, new_file_name)
 
-    downloadFile(route, tmp_file)
-    unZipFile(tmp_file)
-    removeFile(tmp_file)
+    downloadFile(isISO, route, new_file_name, tmp_file, unzipped_file_name)
+
+    if os.path.exists(tmp_file):
+        unZipFile(tmp_file)
+        removeFile(tmp_file)
+
     print(' ')
 
 
@@ -207,14 +241,15 @@ def readGameKey(gameKeyRoute):
         return None
 
 
-def openExplorerFile(fileName):
-    file_path = os.path.join('.', fileName)
+def openExplorer(fileName):
+    path = os.path.join('.', fileName)
+    is_file = os.path.isfile(path)
 
-    if os.path.exists(file_path):
+    if os.path.exists(path):
         if os.name == 'nt':  # Windows Systems
-            subprocess.Popen(['explorer', '/select,', file_path])
+            subprocess.Popen(['explorer', '/select,', path] if is_file else ['explorer', path])
         elif os.name == 'posix':  # Unix Systems (Linux, macOS)
-            subprocess.Popen(['xdg-open', '--select', file_path])
+            subprocess.Popen(['xdg-open', '--select', path] if is_file else ['xdg-open', path])
     else:
         print(f"Error opening {fileName}.\n")
 
@@ -237,7 +272,7 @@ def decryptFile(gameName):
 
     removeFiles([original_game_path_name, key_route_name])
 
-    openExplorerFile(decrypted_file)
+    openExplorer(decrypted_file)
 
 
 def downloadPS3Element(element):
@@ -297,6 +332,8 @@ def loadConfig():
 
         'LIST_FILES_JSON_NAME': config_file_parser.get('Download', 'LIST_FILES_JSON_NAME',
                                                        fallback="listPS3Titles.json"),
+        'EXTERNAL_ISO_DOWNLOAD': config_file_parser.getint('Download', 'EXTERNAL_ISO', fallback=0) != 0,
+        'EXTERNAL_KEY_DOWNLOAD': config_file_parser.getint('Download', 'EXTERNAL_KEY', fallback=0) != 0,
         'MAX_RETRIES': config_file_parser.getint('Download', 'MAX_RETRIES', fallback=-1),
         'DELAY_BETWEEN_RETRIES': config_file_parser.getint('Download', 'DELAY_BETWEEN_RETRIES', fallback=-1),
         'TIMEOUT_REQUEST': config_file_parser.getint('Download', 'TIMEOUT_REQUEST', fallback=-1),
