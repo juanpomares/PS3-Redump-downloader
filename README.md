@@ -1,6 +1,20 @@
 # PS3 Redump Downloader
 
-PS3 Redump Downloader is a Python console application designed to simplify the process of downloading and decrypting [Redump PS3](https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/) games.
+> ⚠️ **Upstream notice (Myrient shutdown)**  
+> Myrient has announced it will shut down on **31 March 2026**. After that date, any feature that relies on Myrient as the download source will stop working unless you configure an alternative source.  
+> This project is not affiliated with Myrient.
+
+PS3 Redump Downloader is a Python console application to help download and process PS3 disc image files from a configured source ( [Redump PS3](https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/) ), and decrypt them using **PS3Dec**.
+
+## Project status
+
+- **Maintenance mode** until 31 March 2026 (bugfixes and small improvements only).
+- After the shutdown date, the project may be **archived** if there is no longer a maintained upstream source.
+
+## Intended use / legal
+
+This tool is intended for **lawful personal use**, such as working with **disc dumps you made yourself** or content you otherwise have the rights to use.  
+You are responsible for complying with applicable laws in your jurisdiction.
 
 ---
 
@@ -10,45 +24,53 @@ PS3 Redump Downloader is a Python console application designed to simplify the p
 
 #### Easy Installation
 
-1. Download the **[latest release version](https://github.com/juanpomares/PS3-Redump-downloader/releases/download/v0.1.2/PS3-Redump-downloader-0.1.2.zip)**.
-2. Extract the downloaded zip file and execute **PS3RedumpDownloader.exe**.
+1. Go to the **[Releases page](https://github.com/juanpomares/PS3-Redump-downloader/releases)** and download the latest `.zip`.
+2. Extract the downloaded zip file and run **PS3RedumpDownloader.exe**.
 
-#### Manual Download
+#### Manual Setup
 
-1. Download **PS3Dec** (a utility used to decrypt PS3 ISO files). You can obtain the Windows executable from **[ConsoleMods](https://consolemods.org/wiki/File:PS3DecR5.7z)** or compile the [PS3Dec project by al3xtjames](https://github.com/al3xtjames/PS3Dec/tree/master).
-2. Download the **[latest release version of PS3RedumpDownloader.exe](https://github.com/juanpomares/PS3-Redump-downloader/releases/download/v0.1.2/PS3RedumpDownloader.exe)** from this project.
-3. Execute **PS3RedumpDownloader.exe**.
+1. Get **PS3Dec** (used to decrypt PS3 ISO files). You can either:
+   - Download a Windows build from **ConsoleMods**: https://consolemods.org/wiki/File:PS3DecR5.7z
+   - Or compile it yourself from **al3xtjames/PS3Dec**: https://github.com/al3xtjames/PS3Dec
+2. Download **PS3RedumpDownloader.exe** from the **[Releases page](https://github.com/juanpomares/PS3-Redump-downloader/releases)**.
+3. Place `PS3Dec.exe` next to `PS3RedumpDownloader.exe` (same folder) and run **PS3RedumpDownloader.exe**.
 
 ### Other Operating Systems
 
-1. Download and compile the [PS3Dec project by al3xtjames](https://github.com/al3xtjames/PS3Dec/tree/master).
-2. Clone this repository in the same folder.
-3. Install the required Python packages requests and BeautifulSoup using pip: `pip install requests beautifulsoup4 tqdm`.
-4. Execute `python main.py`.
+1. Download and compile **PS3Dec**: https://github.com/al3xtjames/PS3Dec
+2. Clone this repository.
+3. Install dependencies:
+   - `pip install requests beautifulsoup4 tqdm`
+4. Run:
+   - `python main.py`
 
 ---
 
 ## How to Use
 
-Upon first opening the tool, it connects and downloads all available PS3 ISO images. This list will be saved in a file named _listPS3Titles.json_.
+On first launch, the tool connects to the configured source and downloads the available title list.  
+This list is cached in a file named **`listPS3Titles.json`**.
 
 ![First Time Open](./doc/firstTimeOpen.png)
 
-Subsequent openings will load this list from the file.
+Subsequent launches will load the cached list:
 
 ![Next Time Open](./doc/notFirstTimeOpen.png)
 
-The app will display the message 'Find PS3 title to download'. You can input the full title or part of it to filter the list. For example, 'Europe Eye'.
+The app will display: `Find PS3 title to download`.  
+Type a full title or a substring to filter the list.
 
 ![Filtering Game List](./doc/filterList.png)
 
-Each game in the list is indexed for selection. To download a specific game, input its corresponding index. If you wish to perform a new search, simply input the desired title, and the list will be filtered accordingly.
-
-For instance, to download '2. EyeCreate (Europe) (En,Fr,De,Es,It).zip (129.3 MiB)', type '2' and press Enter. The download process will commence, starting with the download and unzipping of the ISO, followed by the key and finishing with the decryption.
+Each entry is indexed for selection. To download an item, type its index and press Enter.  
+The tool will download, extract, and then decrypt (via PS3Dec) when applicable.
 
 ![Downloading Game](./doc/downloading.gif)
 
-Once the process is complete, three new files will be created in the folder: Title_decrypted.iso and the original files (which can be deleted) Title.iso and Title.dkey.
+When finished, you should see:
+
+- `Title_decrypted.iso`
+- Optional original files you may delete: `Title.iso` and `Title.dkey`
 
 ![Downloaded Game](./doc/downloaded.png)
 
@@ -56,16 +78,19 @@ Once the process is complete, three new files will be created in the folder: Tit
 
 ## Contributions
 
-Contributions are welcome. If you find any bugs or have any suggestions for improvement, feel free to open an issue or submit a pull request.
+Contributions are welcome, with focus on bugfixes and maintenance.
+If you find a bug or want to suggest an improvement, please open an issue or submit a pull request.
+
+---
 
 ## Credits
 
-- [al3xtjames](https://github.com/al3xtjames/) for creating [PS3Dec](https://github.com/al3xtjames/PS3Dec/tree/master)
+- **al3xtjames** for creating **PS3Dec**: https://github.com/al3xtjames/PS3Dec
 
-### Author
+## Author
 
-This project was developed by **[juanpomares](https://github.com/juanpomares/)**.
+Developed by **juanpomares**: https://github.com/juanpomares/
 
-### License
+## License
 
-This project is licensed under the MIT License. You are free to use, modify, and distribute this project, provided you include attribution to the original author.
+This project is licensed under the **MIT License**. You are free to use, modify, and distribute this project, provided you include attribution to the original author.
