@@ -3,6 +3,7 @@
 *.iso
 *.key
 *.dkey
+tmp
 
 output
 
