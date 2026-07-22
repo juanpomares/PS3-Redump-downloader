@@ -1,15 +1,13 @@
 # PS3 Redump Downloader
 
-> ⚠️ **Upstream notice (Myrient shutdown)**  
-> Myrient has announced it will shut down on **31 March 2026**. After that date, any feature that relies on Myrient as the download source will stop working unless you configure an alternative source.  
-> This project is not affiliated with Myrient.
+PS3 Redump Downloader is a Python console application to help download and process PS3 disc image files from a configured source ( [Minerva Archive](https://minerva-archive.org/) ), and decrypt them using **PS3Dec**.
 
-PS3 Redump Downloader is a Python console application to help download and process PS3 disc image files from a configured source ( [Redump PS3](https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/) ), and decrypt them using **PS3Dec**.
+This project is not affiliated with Minerva Archive.
 
 ## Project status
 
-- **Maintenance mode** until 31 March 2026 (bugfixes and small improvements only).
-- After the shutdown date, the project may be **archived** if there is no longer a maintained upstream source.
+- **In development** while the project is adapted to use **Minerva Archive** as the upstream source.
+- Minerva Archive uses torrents instead of direct downloads, but the general setup and usage flow are expected to remain similar.
 
 ## Intended use / legal
 
