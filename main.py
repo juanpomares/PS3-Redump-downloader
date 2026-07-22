@@ -42,13 +42,12 @@ def getPS3List():
 
     print('Converting data...')
     soup = BeautifulSoup(ps3_titles_response.content, features='html.parser')
-    links = soup.select('table#list tbody tr')
-    links.pop(0)
+    links = soup.select('div.entry:not(.search_back)')
 
     for current_link in links:
         try:
-            link_element = current_link.select('td.link a')[0]
-            size_element = current_link.select('td.size')[0]
+            link_element = current_link.select('a')[0]
+            size_element = current_link.select('span')[0]
 
             available_ps3_titles.append(
                 {'title': link_element.text, 'link': link_element['href'], 'size': size_element.text})
@@ -56,7 +55,7 @@ def getPS3List():
         except:
             pass
 
-    print(f'Downloaded {len(available_ps3_titles)} titles')
+    print(f'List loaded with {len(available_ps3_titles)} titles')
 
     with open(json_file_path, 'w') as file:
         file.write(json.dumps(available_ps3_titles))
