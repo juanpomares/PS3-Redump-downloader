@@ -346,7 +346,7 @@ def loadConfig():
     if config['MAX_RETRIES'] < 1:
         config['MAX_RETRIES'] = 5
     if config['DELAY_BETWEEN_RETRIES'] < 5:
-        config['MAX_RETRIES'] = 5
+        config['DELAY_BETWEEN_RETRIES'] = 5
     if config['TIMEOUT_REQUEST'] < 0:
         config['TIMEOUT_REQUEST'] = None
 
