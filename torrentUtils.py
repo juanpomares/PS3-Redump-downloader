@@ -4,6 +4,19 @@ import time
 import libtorrent as lt
 from tqdm import tqdm
 
+_torrent_session = None
+
+
+def getTorrentSession():
+    global _torrent_session
+
+    if _torrent_session is None:
+        _torrent_session = lt.session({
+            "listen_interfaces": "0.0.0.0:0"
+        })
+
+    return _torrent_session
+
 
 def getTorrentInfo(torrent_file_path):
     torrent_size = os.path.getsize(torrent_file_path)
@@ -47,7 +60,8 @@ def findTorrentFileIndex(torrent_info, torrent_file_to_download):
     return match["index"]
 
 
-def removeTorrentsPart(torrent_session, torrent_handle):
+def removeTorrentsPart(torrent_handle):
+    torrent_session = getTorrentSession()
     torrent_session.remove_torrent(torrent_handle, lt.session.delete_partfile)
 
     timeout_at = time.monotonic() + 10
@@ -81,8 +95,7 @@ def downloadTorrentFileByIndex(torrent_info, torrent_index, destination_file_pat
     file_priorities = [0] * torrent_files.num_files()
     file_priorities[torrent_index] = 7
 
-    torrent_session = lt.session({"listen_interfaces": "0.0.0.0:0"})
-
+    torrent_session = getTorrentSession()
     torrent_handle = torrent_session.add_torrent({
         "ti": torrent_info,
         "save_path": destination_folder,
@@ -159,7 +172,7 @@ def downloadTorrentFileByIndex(torrent_info, torrent_index, destination_file_pat
 
             time.sleep(1)
 
-    removeTorrentsPart(torrent_session, torrent_handle)
+    removeTorrentsPart(torrent_handle)
 
     if not os.path.isfile(destination_file_path):
         raise RuntimeError(
