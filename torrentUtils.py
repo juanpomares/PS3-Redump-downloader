@@ -85,7 +85,11 @@ def downloadTorrentFileByIndex(torrent_info, torrent_index, destination_file_pat
         unit_scale=True,
         unit_divisor=1024,
         desc=" - Downloading: ",
-        ascii=" █"
+        ascii=" █",
+        bar_format=(
+            "{l_bar}{bar}| {n_fmt}/{total_fmt} "
+            "[elapsed {elapsed}{postfix}]"
+        )
     ) as progress_bar:
 
         while True:
@@ -94,29 +98,51 @@ def downloadTorrentFileByIndex(torrent_info, torrent_index, destination_file_pat
             if status.errc and status.errc.value() != 0:
                 raise RuntimeError(f"Torrent error: {status.errc.message()}")
 
-            downloaded_bytes = min(
-                status.total_wanted_done, selected_file_size)
+            total_wanted = (
+                status.total_wanted
+                if status.total_wanted > 0
+                else selected_file_size
+            )
+
+            downloaded_bytes = min(status.total_wanted_done, total_wanted)
+
+            if progress_bar.total != total_wanted:
+                progress_bar.total = total_wanted
+                progress_bar.refresh()
 
             progress_bar.update(max(0, downloaded_bytes - progress_bar.n))
 
             download_speed = status.download_payload_rate
-            remaining_bytes = (selected_file_size - downloaded_bytes)
+            upload_speed = status.upload_payload_rate
 
-            if download_speed > 0:
-                eta_seconds = (remaining_bytes / download_speed)
+            remaining_bytes = max(0, total_wanted - downloaded_bytes)
 
+            if download_speed > 0 and remaining_bytes > 0:
+                eta_seconds = remaining_bytes / download_speed
                 eta = tqdm.format_interval(eta_seconds)
+            elif remaining_bytes == 0:
+                eta = "00:00"
             else:
                 eta = "--:--"
 
             progress_bar.set_postfix_str(
-                f"{download_speed / 1024 ** 2:.2f} MiB/s"
+                f"↓ {download_speed / 1024 ** 2:.2f} MiB/s"
+                f" | ↑ {upload_speed / 1024 ** 2:.2f} MiB/s"
                 f" | ETA {eta}"
                 f" | peers {status.num_peers}"
             )
 
-            if status.is_finished:
-                progress_bar.update(selected_file_size - progress_bar.n)
+            download_finished = (
+                status.is_finished
+                or (
+                    status.total_wanted > 0
+                    and status.total_wanted_done
+                    >= status.total_wanted
+                )
+            )
+
+            if download_finished:
+                progress_bar.update(max(0, total_wanted - progress_bar.n))
                 break
 
             time.sleep(1)
