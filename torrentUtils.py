@@ -158,7 +158,7 @@ def downloadTorrentFileByIndex(torrent_info, torrent_index, destination_file_pat
     return destination_file_path
 
 
-def downloadFileWithLibTorrent(torrent_file_path, tmp_file, new_file_name):
+def downloadFileWithLibTorrent(torrent_file_path, new_file_name, tmp_file):
     torrent_info = getTorrentInfo(torrent_file_path)
     torrent_index = findTorrentFileIndex(torrent_info, new_file_name)
 
