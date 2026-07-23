@@ -17,6 +17,9 @@ from tqdm.utils import CallbackIOWrapper
 import re
 from playwright.sync_api import Error as PlaywrightError, expect, sync_playwright
 
+import libtorrent as lt
+
+
 config = {}
 TMP_FOLDER_PATHNAME = ''
 TMP_ISO_FOLDER_PATHNAME = ''
@@ -106,53 +109,52 @@ def getFileSize(link):
     return total_size
 
 
-# Original code from https://stackoverflow.com/a/37573701
-def downloadFileUsingRequest(link, name):
-    total_size = getFileSize(link)
+def findTorrentFileIndex(torrent_file_path, torrent_file_to_download):
+    torrent_size = os.path.getsize(torrent_file_path)
+    torrent_limits = {"max_buffer_size": torrent_size + 1024 * 1024}
 
-    retries = 0
-    while retries < config["MAX_RETRIES"]:
-        headers = {}
+    torrent_info = lt.torrent_info(torrent_file_path, torrent_limits)
+    torrent_files = torrent_info.files()
 
-        first_byte = 0
-        if total_size is not None and os.path.exists(name):
-            first_byte = os.path.getsize(name)
-            if first_byte >= total_size:
-                print(f"The files {name} is downloaded previosly.")
-                return
-            headers = {"Range": f"bytes={first_byte}-{total_size}"}
+    target_file_name = os.path.basename(torrent_file_to_download).casefold()
 
-        try:
-            with requests.get(link, headers=headers, stream=True, timeout=config["TIMEOUT_REQUEST"],
-                              verify=True) as response, open(name, "ab") as newFile:
-                block_size = 1024
-                if total_size is None:  # no content length header
-                    newFile.write(response.content)
-                else:
-                    with tqdm(total=total_size, unit="B", unit_scale=True, unit_divisor=block_size,
-                              desc=" - Downloading: ",
-                              ascii=' █', initial=first_byte) as progress_bar:
-                        for data in response.iter_content(block_size):
-                            progress_bar.update(len(data))
-                            newFile.write(data)
+    matches = []
 
-                        if total_size != 0 and progress_bar.n != total_size:
-                            raise RuntimeError("Could not download file")
+    for file_index in range(torrent_files.num_files()):
+        internal_file_path = torrent_files.file_path(file_index)
+        internal_file_name = os.path.basename(internal_file_path).casefold()
 
-                        break
+        if internal_file_name == target_file_name:
+            matches.append({"index": file_index, "path": internal_file_path})
 
-        except (requests.ConnectionError, requests.Timeout, RuntimeError):
-            retries += 1
-            print(
-                f"Connection error! Try again ({retries}/{config['MAX_RETRIES']}). Waiting {config['DELAY_BETWEEN_RETRIES']} secs...")
-            time.sleep(config['DELAY_BETWEEN_RETRIES'])
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            break
+    if not matches:
+        raise FileNotFoundError(
+            f"'{torrent_file_to_download}' was not found "
+            f"inside '{torrent_file_path}'."
+        )
 
-    if retries == config['MAX_RETRIES']:
+    if len(matches) > 1:
+        matching_paths = "\n".join(
+            f" - {match['path']}" for match in matches
+        )
+
         raise RuntimeError(
-            f"Failed to download file after {config['MAX_RETRIES']} attempts.")
+            f"Multiple files named "
+            f"'{torrent_file_to_download}' were found:\n"
+            f"{matching_paths}"
+        )
+
+    match = matches[0]
+    print(f"Torrent file found: {match['path']} (index: {match['index']})")
+
+    return match["index"]
+
+
+def downloadFileWithLibTorrent(torrent_file_path, tmp_file, new_file_name):
+    print(f"Downloading {tmp_file} using libtorrent...")
+    torrentIndex = findTorrentFileIndex(torrent_file_path, tmp_file)
+
+    # TODO Donwload file with torrentIndex
 
 
 def downloadFileUsingNavigator(isISO, route, downloaded_file_name, zip_file, unzippedFile):
@@ -177,15 +179,6 @@ def downloadFileUsingNavigator(isISO, route, downloaded_file_name, zip_file, unz
         input("\tPress enter to check it again...")
 
     print('')
-
-
-def downloadFile(isISO, route, downloaded_file_name, zip_file, unzippedFile):
-    download_using_navigator = config["EXTERNAL_ISO_DOWNLOAD" if isISO else "EXTERNAL_KEY_DOWNLOAD"]
-    if download_using_navigator:
-        downloadFileUsingNavigator(
-            isISO, route, downloaded_file_name, zip_file, unzippedFile)
-    else:
-        downloadFileUsingRequest(route, zip_file)
 
 
 # Original code from https://stackoverflow.com/a/73694796
@@ -291,8 +284,6 @@ def downloadAndUnzip(route, title, isISO):
     tmp_path = TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME
     torrent_file_path = getTorrentFile(route, title, tmp_path)
 
-    # TODO Donwload file using torrent_file_path
-
     unzipped_file_name = f"{title}.{'iso' if isISO else 'dkey'}"
     unzipped_file_path = os.path.join(tmp_path, unzipped_file_name)
 
@@ -300,15 +291,16 @@ def downloadAndUnzip(route, title, isISO):
         print(' - File previously downloaded :)', end='\n\n')
         return
 
-    new_file_name = f"{title}.zip"
-    tmp_file = os.path.join(
-        TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME, new_file_name)
+    file_name_to_download = f"{title}.zip"
+    tmp_file_path = os.path.join(
+        TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME, file_name_to_download)
 
-    downloadFile(isISO, route, new_file_name, tmp_file, unzipped_file_name)
+    downloadFileWithLibTorrent(
+        torrent_file_path, file_name_to_download, tmp_file_path)
 
-    if os.path.exists(tmp_file):
-        unZipFile(tmp_file)
-        removeFile(tmp_file)
+    if os.path.exists(tmp_file_path):
+        unZipFile(tmp_file_path)
+        removeFile(tmp_file_path)
 
     print(' ')
 
