@@ -218,7 +218,10 @@ def removeFiles(files):
 
 
 def openPlaywrightBrowser(playwright):
-    browsers = [("chrome", "Google Chrome"), ("msedge", "Microsoft Edge"),]
+    browsers = [
+        ("chrome", "Google Chrome"),
+        ("msedge", "Microsoft Edge")
+    ]
 
     for channel, browser_name in browsers:
         try:
