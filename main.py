@@ -97,28 +97,44 @@ def filterList(_list, search):
     return filtered_list
 
 
-def downloadFileUsingNavigator(isISO, route, downloaded_file_name, zip_file, unzippedFile):
-    destination_folder = os.path.join(
-        TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME, " ")
+def downloadFileUsingAlternativeTorrentClient(torrent_path, file_name_to_download, destination_file_path):
+    torrent_path = os.path.abspath(torrent_path)
+    destination_file_path = os.path.abspath(destination_file_path)
 
-    print(f"Opening browser with download link (${route})")
-    webbrowser.open(route)
+    destination_folder = os.path.dirname(destination_file_path)
 
-    time.sleep(5)
+    if os.path.isfile(destination_file_path):
+        print(f"File already exists: {destination_file_path}")
+        return destination_file_path
+
     print(
-        f"Please download the file and copy '{downloaded_file_name}' to '{destination_folder}'")
+        f"\nPlease open the torrent file with your preferred client:\n"
+        f"'{torrent_path}'"
+    )
+
+    print(
+        f"\nDownload only '{file_name_to_download}' and copy it to:\n"
+        f"'{destination_folder}'"
+    )
+
     openExplorer(destination_folder)
 
-    time.sleep(5)
-    print("Waiting for the file to be copied...")
-    input("Press enter to start checking for the file...")
+    print("\nWaiting for the file to be copied...")
+    input("Press Enter to start checking for the file...")
 
-    while not os.path.exists(zip_file) and not os.path.exists(unzippedFile):
+    while not os.path.isfile(destination_file_path):
         print(
-            f"\nFile not found!! Make sure to download and copy the file to '{destination_folder}'")
-        input("\tPress enter to check it again...")
+            f"\nFile not found! Make sure "
+            f"'{file_name_to_download}' has been downloaded "
+            f"and copied to:\n"
+            f"'{destination_folder}'"
+        )
 
-    print('')
+        input("\tPress Enter to check again...")
+
+    print(f"\nFile found: '{destination_file_path}'\n")
+
+    return destination_file_path
 
 
 # Original code from https://stackoverflow.com/a/73694796
@@ -150,6 +166,18 @@ def removeFiles(files):
         removeFile(file)
 
 
+def downloadFile(isISO, torrent_path, file_name_to_download, tmp_folder_path):
+    destination_file_path = os.path.join(
+        tmp_folder_path, file_name_to_download)
+
+    download_using_alternative_client = config["EXTERNAL_ISO_DOWNLOAD" if isISO else "EXTERNAL_KEY_DOWNLOAD"]
+
+    if download_using_alternative_client:
+        return downloadFileUsingAlternativeTorrentClient(torrent_path, file_name_to_download, destination_file_path)
+
+    return downloadFileWithLibTorrent(torrent_path, file_name_to_download, destination_file_path)
+
+
 def downloadAndUnzip(route, title, isISO):
     is_iso_string = "ISO" if isISO else "Key"
     print(f" # {is_iso_string} file...")
@@ -165,11 +193,10 @@ def downloadAndUnzip(route, title, isISO):
         return
 
     file_name_to_download = f"{title}.zip"
-    tmp_file_path = os.path.join(
-        TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME, file_name_to_download)
+    tmp_folder_path = TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME
 
-    downloadFileWithLibTorrent(
-        torrent_file_path, file_name_to_download, tmp_file_path)
+    tmp_file_path = downloadFile(
+        isISO, torrent_file_path, file_name_to_download, tmp_folder_path)
 
     if os.path.exists(tmp_file_path):
         unZipFile(tmp_file_path)
