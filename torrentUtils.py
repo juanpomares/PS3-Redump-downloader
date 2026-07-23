@@ -2,11 +2,14 @@ import os
 import libtorrent as lt
 
 
-def findTorrentFileIndex(torrent_file_path, torrent_file_to_download):
+def getTorrentInfo(torrent_file_path):
     torrent_size = os.path.getsize(torrent_file_path)
     torrent_limits = {"max_buffer_size": torrent_size + 1024 * 1024}
 
-    torrent_info = lt.torrent_info(torrent_file_path, torrent_limits)
+    return lt.torrent_info(torrent_file_path, torrent_limits)
+
+
+def findTorrentFileIndex(torrent_info, torrent_file_to_download):
     torrent_files = torrent_info.files()
 
     target_file_name = os.path.basename(torrent_file_to_download).casefold()
@@ -45,6 +48,7 @@ def findTorrentFileIndex(torrent_file_path, torrent_file_to_download):
 
 def downloadFileWithLibTorrent(torrent_file_path, tmp_file, new_file_name):
     print(f"Downloading {tmp_file} using libtorrent...")
-    torrentIndex = findTorrentFileIndex(torrent_file_path, tmp_file)
+    torrentInfo = getTorrentInfo(torrent_file_path)
+    torrentIndex = findTorrentFileIndex(torrentInfo, tmp_file)
 
     # TODO Donwload file with torrentIndex
