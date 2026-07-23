@@ -9,3 +9,5 @@ output
 
 ps3dec.exe
 vcomp100.dll
+
+__pycache__
