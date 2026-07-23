@@ -47,6 +47,18 @@ def findTorrentFileIndex(torrent_info, torrent_file_to_download):
     return match["index"]
 
 
+def removeTorrentsPart(torrent_session, torrent_handle):
+    torrent_session.remove_torrent(torrent_handle, lt.session.delete_partfile)
+
+    timeout_at = time.monotonic() + 10
+
+    while torrent_handle.is_valid():
+        if time.monotonic() >= timeout_at:
+            break
+
+        time.sleep(0.05)
+
+
 def downloadTorrentFileByIndex(torrent_info, torrent_index, destination_file_path):
     destination_file_path = os.path.abspath(destination_file_path)
 
@@ -146,6 +158,8 @@ def downloadTorrentFileByIndex(torrent_info, torrent_index, destination_file_pat
                 break
 
             time.sleep(1)
+
+    removeTorrentsPart(torrent_session, torrent_handle)
 
     if not os.path.isfile(destination_file_path):
         raise RuntimeError(
