@@ -142,7 +142,9 @@ def downloadTorrentFileByIndex(torrent_info, torrent_index, destination_file_pat
 
             remaining_bytes = max(0, total_wanted - downloaded_bytes)
 
-            if download_speed > 0 and remaining_bytes > 0:
+            minimum_speed_for_eta = 50 * 1024  # 50 KiB/s
+
+            if download_speed >= minimum_speed_for_eta and remaining_bytes > 0:
                 eta_seconds = remaining_bytes / download_speed
                 eta = tqdm.format_interval(eta_seconds)
             elif remaining_bytes == 0:
