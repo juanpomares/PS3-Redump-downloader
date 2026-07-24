@@ -178,31 +178,71 @@ def downloadFile(isISO, torrent_path, file_name_to_download, tmp_folder_path):
     return downloadFileWithLibTorrent(torrent_path, file_name_to_download, destination_file_path)
 
 
+def unzipAndRemoveFile(zip_file_path, expected_file_path):
+    if not os.path.isfile(zip_file_path):
+        return False
+
+    try:
+        unZipFile(zip_file_path)
+
+    except (zipfile.BadZipFile, EOFError) as e:
+        print(f"Invalid or incomplete ZIP '{zip_file_path}': {e}")
+
+        if os.path.exists(expected_file_path):
+            removeFile(expected_file_path)
+
+        removeFile(zip_file_path)
+        return False
+
+    except OSError as e:
+        raise RuntimeError(f"Could not extract '{zip_file_path}': {e}"
+                           ) from e
+
+    if not os.path.isfile(expected_file_path):
+        print(
+            f"The ZIP was extracted, but the expected file "
+            f"was not found: {expected_file_path}"
+        )
+
+        removeFile(zip_file_path)
+        return False
+
+    removeFile(zip_file_path)
+    return True
+
+
 def downloadAndUnzip(route, title, isISO):
     is_iso_string = "ISO" if isISO else "Key"
     print(f" # {is_iso_string} file...")
 
-    tmp_path = TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME
-    torrent_file_path = getTorrentFile(route, title, tmp_path)
+    tmp_folder_path = TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME
 
     unzipped_file_name = f"{title}.{'iso' if isISO else 'dkey'}"
-    unzipped_file_path = os.path.join(tmp_path, unzipped_file_name)
+    unzipped_file_path = os.path.join(tmp_folder_path, unzipped_file_name)
 
-    if os.path.exists(unzipped_file_path):
+    if os.path.isfile(unzipped_file_path):
         print(' - File previously downloaded :)', end='\n\n')
         return
 
-    file_name_to_download = f"{title}.zip"
-    tmp_folder_path = TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME
+    zipped_file_name = f"{title}.zip"
+    zipped_file_path = os.path.join(tmp_folder_path, zipped_file_name)
 
-    tmp_file_path = downloadFile(
-        isISO, torrent_file_path, file_name_to_download, tmp_folder_path)
+    if unzipAndRemoveFile(zipped_file_path, unzipped_file_path):
+        print(' - File previously downloaded/extracted :)', end='\n\n')
+        return
 
-    if os.path.exists(tmp_file_path):
-        unZipFile(tmp_file_path)
-        removeFile(tmp_file_path)
+    torrent_file_path = getTorrentFile(route, title, tmp_folder_path)
 
-    print(' ')
+    downloaded_file_path = downloadFile(
+        isISO, torrent_file_path, zipped_file_name, tmp_folder_path)
+
+    if not unzipAndRemoveFile(downloaded_file_path, unzipped_file_path):
+        raise RuntimeError(
+            f"Could not extract the downloaded file: "
+            f"{downloaded_file_path}"
+        )
+
+    print(" ")
 
 
 def readGameKey(gameKeyRoute):
