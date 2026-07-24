@@ -14,7 +14,7 @@ def openPlaywrightBrowser(playwright):
         try:
             browser = playwright.chromium.launch(
                 channel=channel,
-                headless=False,
+                headless=True,
             )
 
             print(f"Using {browser_name} with Playwright.")
