@@ -67,22 +67,54 @@ def getPS3ListByUrl(url):
     return available_entries
 
 
+def isGameListValid(game_list):
+    if not isinstance(game_list, list):
+        return False
+
+    for game in game_list:
+        if not isinstance(game, dict):
+            return False
+        if not all(key in game for key in ['title', 'size', 'game_magnet', 'key_magnet']):
+            return False
+
+    return True
+
+
+def getFileListFromJSON(file_name):
+    if not os.path.isfile(file_name):
+        return None
+
+    try:
+        with open(file_name, 'r') as file:
+            print(f"{config['LIST_FILES_JSON_NAME']} exists...")
+            list_files = json.load(file)
+
+        list_files_len = len(list_files)
+        if list_files_len > 0 and isGameListValid(list_files):
+            print(
+                f"{config['LIST_FILES_JSON_NAME']} has {list_files_len} titles")
+            return list_files
+
+        invalid_file_name = f"{file_name}.invalid"
+        os.replace(file_name, invalid_file_name)
+
+        print(
+            f"{config['LIST_FILES_JSON_NAME']} is empty or invalid. old file renamed to '{invalid_file_name}'. Re-downloading...")
+    except Exception as e:
+        print(f"Error reading JSON file '{file_name}': {e}")
+
+    return None
+
+
 def getPS3List():
     json_file_path = os.path.join(
         TMP_FOLDER_PATHNAME, config['LIST_FILES_JSON_NAME'])
     json_file_name = f"{config['TMP_FOLDER_NAME']}/{config['LIST_FILES_JSON_NAME']}"
 
-    try:
-        with open(json_file_path, 'r') as file:
-            print(f"{config['LIST_FILES_JSON_NAME']} exists...")
-            list_files = json.load(file)
-            list_files_len = len(list_files)
-            if list_files_len > 0:
-                print(
-                    f"{config['LIST_FILES_JSON_NAME']} has {list_files_len} titles")
-                return list_files
-    except:
-        pass
+    final_list = getFileListFromJSON(json_file_path)
+
+    if final_list is not None:
+        return final_list
 
     games_list = getPS3ListByUrl(config['ISO_URL'])
     keys_list = getPS3ListByUrl(config['KEY_URL'])
