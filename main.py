@@ -420,9 +420,9 @@ def loadConfig():
     global config
     config = {
         'ISO_URL': config_file_parser.get('url', 'ISO',
-                                          fallback="https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/"),
+                                          fallback="https://minerva-archive.org/browse/Redump/Sony%20-%20PlayStation%203/"),
         'KEY_URL': config_file_parser.get('url', 'KEY',
-                                          fallback="https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203%20-%20Disc%20Keys%20TXT/"),
+                                          fallback="https://minerva-archive.org/browse/Redump/Sony%20-%20PlayStation%203%20-%20Disc%20Keys%20TXT/"),
 
         'LIST_FILES_JSON_NAME': config_file_parser.get('Download', 'LIST_FILES_JSON_NAME',
                                                        fallback="listPS3Titles.json"),
