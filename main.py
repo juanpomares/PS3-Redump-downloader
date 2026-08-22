@@ -7,7 +7,6 @@ import sys
 import time
 import zipfile
 import configparser
-import webbrowser
 
 import requests
 from bs4 import BeautifulSoup
@@ -22,6 +21,50 @@ config = {}
 TMP_FOLDER_PATHNAME = ''
 TMP_ISO_FOLDER_PATHNAME = ''
 TMP_KEY_FOLDER_PATHNAME = ''
+
+
+def getPS3ListByUrl(url):
+    print(f"Downloading list from '{url}' ...")
+
+    titles_response = requests.get(url)
+    titles_response.raise_for_status()
+
+    available_entries = []
+
+    print(" - Converting data...")
+
+    soup = BeautifulSoup(titles_response.content, features='html.parser')
+    entries = soup.select('div.entry:not(.search_back)')
+
+    for current_entry in entries:
+        try:
+            link_element = current_entry.select_one('a[href^="/rom?id="]')
+            size_element = current_entry.select_one("span")
+            torrent_element = current_entry.select_one(
+                'a[onclick^="downloadMagnet("]')
+
+            if not link_element or not size_element or not torrent_element:
+                continue
+
+            onclick = torrent_element.get("onclick", "")
+            torrent_link = onclick.replace(
+                "downloadMagnet('", "").replace("')", "")
+
+            available_entries.append({
+                "title": link_element.get_text(strip=True),
+                "size": size_element.get_text(strip=True),
+                "torrent": torrent_link
+            })
+        except Exception as e:
+            print(f"  Error processing entry: {e}")
+
+    entries_len = len(available_entries)
+    if entries_len == 0:
+        print(f" Error: No titles found at '{url}'")
+        sys.exit(-1)
+
+    print(f' - List loaded with {len(available_entries)} titles')
+    return available_entries
 
 
 def getPS3List():
@@ -41,35 +84,39 @@ def getPS3List():
     except:
         pass
 
-    print('Downloading PS3 list...')
-    ps3_titles_response = requests.get(config['ISO_URL'])
+    games_list = getPS3ListByUrl(config['ISO_URL'])
+    keys_list = getPS3ListByUrl(config['KEY_URL'])
 
-    available_ps3_titles = []
+    keys_by_title = {
+        key['title']: key
+        for key in keys_list
+    }
 
-    print('Converting data...')
-    soup = BeautifulSoup(ps3_titles_response.content, features='html.parser')
-    links = soup.select('div.entry:not(.search_back)')
+    final_list = []
 
-    for current_link in links:
-        try:
-            link_element = current_link.select('a')[0]
-            size_element = current_link.select('span')[0]
+    for game in games_list:
+        title = game['title']
 
-            available_ps3_titles.append(
-                {'title': link_element.text, 'size': size_element.text})
+        key_entry = keys_by_title.get(title)
 
-        except:
-            pass
+        if not key_entry:
+            continue
 
-    print(f'List loaded with {len(available_ps3_titles)} titles')
+        final_list.append({
+            'title': title,
+            'size': game['size'],
+            'game_magnet': game['torrent'],
+            'key_magnet': key_entry['torrent']
+        })
+
+    print(f'List loaded with {len(final_list)} titles')
 
     with open(json_file_path, 'w') as file:
-        file.write(json.dumps(available_ps3_titles))
-        file.close()
+        json.dump(final_list, file, indent=4, sort_keys=True)
 
     print(f'Saved in {json_file_name}')
 
-    return available_ps3_titles
+    return final_list
 
 
 def printList(_list):
