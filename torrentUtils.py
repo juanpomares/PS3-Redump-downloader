@@ -183,7 +183,7 @@ def downloadTorrentFileByIndex(torrent_info, torrent_index, destination_file_pat
                 time.sleep(1)
 
     finally:
-        if torrent_handle is not None and torrent_handle.is_valid():
+        if torrent_handle.is_valid():
             removeTorrentAndPartFile(torrent_handle)
 
     if not os.path.isfile(destination_file_path):

@@ -285,7 +285,7 @@ def downloadAndUnzip(rom_id, title, isISO):
                 raise
 
             print(
-                "Requested file was not found in the cached torrent :0"
+                "Requested file was not found in the cached torrent. "
                 "Refreshing torrent file...")
             removeFile(torrent_file_path)
 
@@ -407,21 +407,11 @@ def loadConfig():
                                                        fallback="listPS3Titles.json"),
         'EXTERNAL_ISO_DOWNLOAD': config_file_parser.getint('Download', 'EXTERNAL_ISO', fallback=0) != 0,
         'EXTERNAL_KEY_DOWNLOAD': config_file_parser.getint('Download', 'EXTERNAL_KEY', fallback=0) != 0,
-        'MAX_RETRIES': config_file_parser.getint('Download', 'MAX_RETRIES', fallback=-1),
-        'DELAY_BETWEEN_RETRIES': config_file_parser.getint('Download', 'DELAY_BETWEEN_RETRIES', fallback=-1),
-        'TIMEOUT_REQUEST': config_file_parser.getint('Download', 'TIMEOUT_REQUEST', fallback=-1),
 
         'TMP_FOLDER_NAME': config_file_parser.get('folder', 'TMP_FOLDER_NAME', fallback="tmp"),
         'TMP_ISO_FOLDER_NAME': config_file_parser.get('folder', 'TMP_ISO_FOLDER_NAME', fallback="iso_files"),
         'TMP_KEY_FOLDER_NAME': config_file_parser.get('folder', 'TMP_KEY_FOLDER_NAME', fallback="key_files"),
     }
-
-    if config['MAX_RETRIES'] < 1:
-        config['MAX_RETRIES'] = 5
-    if config['DELAY_BETWEEN_RETRIES'] < 5:
-        config['DELAY_BETWEEN_RETRIES'] = 5
-    if config['TIMEOUT_REQUEST'] < 0:
-        config['TIMEOUT_REQUEST'] = None
 
 
 def main():
