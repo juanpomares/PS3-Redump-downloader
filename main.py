@@ -9,9 +9,7 @@ import zipfile
 import configparser
 from datetime import datetime
 
-import requests
-from urllib.parse import urlparse, parse_qs
-from bs4 import BeautifulSoup
+from requestUtils import getPS3ListByUrl, getTorrentFile
 from tqdm import tqdm
 from tqdm.utils import CallbackIOWrapper
 
@@ -21,50 +19,6 @@ config = {}
 TMP_FOLDER_PATHNAME = ''
 TMP_ISO_FOLDER_PATHNAME = ''
 TMP_KEY_FOLDER_PATHNAME = ''
-
-
-def getPS3ListByUrl(url):
-    print(f"Downloading list from '{url}' ...")
-
-    titles_response = requests.get(url)
-    titles_response.raise_for_status()
-
-    available_entries = []
-
-    print(" - Converting data...")
-
-    soup = BeautifulSoup(titles_response.content, features='html.parser')
-    entries = soup.select('div.entry:not(.search_back)')
-
-    for current_entry in entries:
-        try:
-            link_element = current_entry.select_one('a[href^="/rom?id="]')
-            size_element = current_entry.select_one("span")
-
-            if not link_element or not size_element:
-                continue
-
-            href = link_element.get("href", "")
-            entry_id = parse_qs(urlparse(href).query).get("id", [None])[0]
-
-            if not entry_id:
-                continue
-
-            available_entries.append({
-                "title": link_element.get_text(strip=True),
-                "size": size_element.get_text(strip=True),
-                "id": entry_id
-            })
-        except Exception as e:
-            print(f"  Error processing entry: {e}")
-
-    entries_len = len(available_entries)
-    if entries_len == 0:
-        print(f" Error: No titles found at '{url}'")
-        sys.exit(-1)
-
-    print(f' - List loaded with {len(available_entries)} titles')
-    return available_entries
 
 
 def isGameListValid(game_list):
