@@ -4,7 +4,11 @@ import time
 import libtorrent as lt
 from tqdm import tqdm
 
+
 _torrent_session = None
+
+TORRENT_FILE_DONT_DOWNLOAD = 0
+TORRENT_FILE_TOP_PRIORITY = 7
 
 
 def getTorrentSession():
@@ -92,16 +96,17 @@ def downloadTorrentFileByIndex(torrent_info, torrent_index, destination_file_pat
 
     torrent_info.rename_file(torrent_index, destination_file_name)
 
-    file_priorities = [lt.dont_download] * torrent_files.num_files()
-    file_priorities[torrent_index] = lt.top_priority
+    file_priorities = [TORRENT_FILE_DONT_DOWNLOAD] * torrent_files.num_files()
+
+    file_priorities[torrent_index] = TORRENT_FILE_TOP_PRIORITY
+
+    torrent_params = lt.add_torrent_params()
+    torrent_params.ti = torrent_info
+    torrent_params.save_path = destination_folder
+    torrent_params.file_priorities = file_priorities
 
     torrent_session = getTorrentSession()
-
-    torrent_handle = torrent_session.add_torrent({
-        "ti": torrent_info,
-        "save_path": destination_folder,
-        "file_priorities": file_priorities
-    })
+    torrent_handle = torrent_session.add_torrent(torrent_params)
 
     try:
         print(f"Downloading {destination_file_name} using libtorrent...")
