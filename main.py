@@ -13,7 +13,7 @@ from requestUtils import getPS3ListByUrl, getTorrentFile
 from tqdm import tqdm
 from tqdm.utils import CallbackIOWrapper
 
-from torrentUtils import downloadMagnetFileWithLibTorrent
+from torrentUtils import downloadFileWithLibTorrent
 
 config = {}
 TMP_FOLDER_PATHNAME = ''
@@ -134,8 +134,9 @@ def filterList(_list, search):
     return filtered_list
 
 
-def downloadFileUsingExternalTorrentClient(magnet_link, file_name_to_download, destination_file_path):
+def downloadFileUsingExternalTorrentClient(torrent_file_path, file_name_to_download, destination_file_path):
     destination_file_path = os.path.abspath(destination_file_path)
+    torrent_file_path = os.path.abspath(torrent_file_path)
 
     destination_folder = os.path.dirname(destination_file_path)
 
@@ -144,8 +145,8 @@ def downloadFileUsingExternalTorrentClient(magnet_link, file_name_to_download, d
         return destination_file_path
 
     print(
-        f"\nPlease open the following magnet link with your preferred torrent client:\n"
-        f"'{magnet_link}'"
+        f"\nPlease open the following torrent file with your preferred torrent client:\n"
+        f"'{torrent_file_path}'"
     )
 
     print(
@@ -202,16 +203,16 @@ def removeFiles(files):
         removeFile(file)
 
 
-def downloadFile(isISO, magnet_link, file_name_to_download, tmp_folder_path):
+def downloadFile(isISO, torrent_file_path, file_name_to_download, tmp_folder_path):
     destination_file_path = os.path.join(
         tmp_folder_path, file_name_to_download)
 
     download_using_external_client = config["EXTERNAL_ISO_DOWNLOAD" if isISO else "EXTERNAL_KEY_DOWNLOAD"]
 
     if download_using_external_client:
-        return downloadFileUsingExternalTorrentClient(magnet_link, file_name_to_download, destination_file_path)
+        return downloadFileUsingExternalTorrentClient(torrent_file_path, file_name_to_download, destination_file_path)
 
-    return downloadMagnetFileWithLibTorrent(magnet_link, file_name_to_download, destination_file_path)
+    return downloadFileWithLibTorrent(torrent_file_path, file_name_to_download, destination_file_path)
 
 
 def unzipAndRemoveFile(zip_file_path, expected_file_path):
@@ -247,7 +248,7 @@ def unzipAndRemoveFile(zip_file_path, expected_file_path):
     return True
 
 
-def downloadAndUnzip(magnet_link, title, isISO):
+def downloadAndUnzip(rom_id, title, isISO):
     is_iso_string = "ISO" if isISO else "Key"
     print(f" # {is_iso_string} file...")
 
@@ -267,8 +268,10 @@ def downloadAndUnzip(magnet_link, title, isISO):
         print(' - File previously downloaded/extracted :)', end='\n\n')
         return
 
+    torrent_file_path = getTorrentFile(rom_id, tmp_folder_path)
+
     downloaded_file_path = downloadFile(
-        isISO, magnet_link, zipped_file_name, tmp_folder_path)
+        isISO, torrent_file_path, zipped_file_name, tmp_folder_path)
 
     if not unzipAndRemoveFile(downloaded_file_path, unzipped_file_path):
         raise RuntimeError(
@@ -331,8 +334,8 @@ def downloadPS3Element(element):
 
     print(f"\nSelected {title}\n")
 
-    downloadAndUnzip(element['game_magnet'], title, isISO=True)
-    downloadAndUnzip(element['key_magnet'], title, isISO=False)
+    downloadAndUnzip(element['game_id'], title, isISO=True)
+    downloadAndUnzip(element['key_id'], title, isISO=False)
     print(f'\n{title} downloaded :)')
     decryptFile(title)
 
