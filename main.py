@@ -191,11 +191,11 @@ def unZipFile(fzip):
                     copyfileobj(CallbackIOWrapper(pbar.update, fi), fo)
 
 
-def removeFile(fileRoute):
+def removeFile(file_route):
     try:
-        os.remove(fileRoute)
-    except:
-        print(f'Error removing {fileRoute}')
+        os.remove(file_route)
+    except OSError as e:
+        print(f"Error removing '{file_route}': {e}")
 
 
 def removeFiles(files):
