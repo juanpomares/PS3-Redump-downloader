@@ -7,6 +7,7 @@ import sys
 import time
 import zipfile
 import configparser
+from datetime import datetime
 
 import requests
 from bs4 import BeautifulSoup
@@ -93,11 +94,15 @@ def getFileListFromJSON(file_name):
                 f"{config['LIST_FILES_JSON_NAME']} has {list_files_len} titles")
             return list_files
 
-        invalid_file_name = f"{file_name}.invalid"
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        invalid_file_name = os.path.join(os.path.dirname(
+            file_name), f"{timestamp}.invalid.{os.path.basename(file_name)}")
         os.replace(file_name, invalid_file_name)
 
         print(
-            f"{config['LIST_FILES_JSON_NAME']} is empty or invalid. old file renamed to '{invalid_file_name}'. Re-downloading...")
+            f"{config['LIST_FILES_JSON_NAME']} is empty or invalid. "
+            f"Old file renamed to '{invalid_file_name}'. Re-downloading..."
+        )
     except Exception as e:
         print(f"Error reading JSON file '{file_name}': {e}")
 
