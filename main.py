@@ -121,23 +121,17 @@ def printList(_list):
     print('')
 
 
-def titleContainsWords(title, searches):
-    for search in searches:
-        if search not in title:
-            return False
-
-    return True
-
-
 def filterList(_list, search):
-    searches = search.strip().lower().split(" ")
-    filtered_list = []
+    searches = search.strip().lower().split()
 
-    for element in _list:
-        if titleContainsWords(element['title'].lower(), searches):
-            filtered_list.append(element)
-
-    return filtered_list
+    return [
+        element
+        for element in _list
+        if all(
+            search in element['title'].lower()
+            for search in searches
+        )
+    ]
 
 
 def downloadFileUsingExternalTorrentClient(torrent_file_path, file_name_to_download, destination_file_path):
