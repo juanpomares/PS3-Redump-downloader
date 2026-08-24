@@ -207,7 +207,11 @@ def downloadFile(isISO, torrent_file_path, file_name_to_download, tmp_folder_pat
     destination_file_path = os.path.join(
         tmp_folder_path, file_name_to_download)
 
-    download_using_external_client = config["EXTERNAL_ISO_DOWNLOAD" if isISO else "EXTERNAL_KEY_DOWNLOAD"]
+    download_using_external_client = config[
+        "EXTERNAL_ISO_DOWNLOAD"
+        if isISO
+        else "EXTERNAL_KEY_DOWNLOAD"
+    ]
 
     if download_using_external_client:
         return downloadFileUsingExternalTorrentClient(torrent_file_path, file_name_to_download, destination_file_path)
