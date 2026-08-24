@@ -10,6 +10,7 @@ import configparser
 from datetime import datetime
 
 import requests
+from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 from tqdm.utils import CallbackIOWrapper
@@ -39,20 +40,20 @@ def getPS3ListByUrl(url):
         try:
             link_element = current_entry.select_one('a[href^="/rom?id="]')
             size_element = current_entry.select_one("span")
-            magnet_element = current_entry.select_one(
-                'a[onclick^="downloadMagnet("]')
 
-            if not link_element or not size_element or not magnet_element:
+            if not link_element or not size_element:
                 continue
 
-            onclick = magnet_element.get("onclick", "")
-            magnet_link = onclick.replace(
-                "downloadMagnet('", "").replace("')", "")
+            href = link_element.get("href", "")
+            entry_id = parse_qs(urlparse(href).query).get("id", [None])[0]
+
+            if not entry_id:
+                continue
 
             available_entries.append({
                 "title": link_element.get_text(strip=True),
                 "size": size_element.get_text(strip=True),
-                "magnet": magnet_link
+                "id": entry_id
             })
         except Exception as e:
             print(f"  Error processing entry: {e}")
@@ -73,7 +74,7 @@ def isGameListValid(game_list):
     for game in game_list:
         if not isinstance(game, dict):
             return False
-        if not all(key in game for key in ['title', 'size', 'game_magnet', 'key_magnet']):
+        if not all(key in game for key in ['title', 'size', 'game_id', 'key_id']):
             return False
 
     return True
@@ -140,8 +141,8 @@ def getPS3List():
         final_list.append({
             'title': title,
             'size': game['size'],
-            'game_magnet': game['magnet'],
-            'key_magnet': key_entry['magnet']
+            'game_id': game['id'],
+            'key_id': key_entry['id']
         })
 
     print(f'List loaded with {len(final_list)} titles')
