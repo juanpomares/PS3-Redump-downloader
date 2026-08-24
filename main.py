@@ -272,10 +272,22 @@ def downloadAndUnzip(rom_id, title, isISO):
         print(' - File previously downloaded/extracted :)', end='\n\n')
         return
 
-    torrent_file_path = getTorrentFile(rom_id, tmp_folder_path)
+    for attempt in range(2):
+        torrent_file_path = getTorrentFile(rom_id, tmp_folder_path)
 
-    downloaded_file_path = downloadFile(
-        isISO, torrent_file_path, zipped_file_name, tmp_folder_path)
+        try:
+            downloaded_file_path = downloadFile(
+                isISO, torrent_file_path, zipped_file_name, tmp_folder_path)
+            break
+
+        except FileNotFoundError:
+            if attempt == 1:
+                raise
+
+            print(
+                "Requested file was not found in the cached torrent :0"
+                "Refreshing torrent file...")
+            removeFile(torrent_file_path)
 
     if not unzipAndRemoveFile(downloaded_file_path, unzipped_file_path):
         raise RuntimeError(
