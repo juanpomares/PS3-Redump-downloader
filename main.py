@@ -34,6 +34,18 @@ def isGameListValid(game_list):
     return True
 
 
+def renameInvalidFile(file_name):
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    invalid_file_name = os.path.join(
+        os.path.dirname(file_name),
+        f"{timestamp}.invalid.{os.path.basename(file_name)}"
+    )
+
+    os.replace(file_name, invalid_file_name)
+
+    return invalid_file_name
+
+
 def getFileListFromJSON(file_name):
     if not os.path.isfile(file_name):
         return None
@@ -49,17 +61,11 @@ def getFileListFromJSON(file_name):
                 f"{config['LIST_FILES_JSON_NAME']} has {list_files_len} titles")
             return list_files
 
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        invalid_file_name = os.path.join(os.path.dirname(
-            file_name), f"{timestamp}.invalid.{os.path.basename(file_name)}")
-        os.replace(file_name, invalid_file_name)
-
-        print(
-            f"{config['LIST_FILES_JSON_NAME']} is empty or invalid. "
-            f"Old file renamed to '{invalid_file_name}'. Re-downloading..."
-        )
     except Exception as e:
         print(f"Error reading JSON file '{file_name}': {e}")
+
+    invalid_file_name = renameInvalidFile(file_name)
+    print(f"{config['LIST_FILES_JSON_NAME']} is empty or invalid. Old file renamed to '{invalid_file_name}'. Re-downloading...")
 
     return None
 
