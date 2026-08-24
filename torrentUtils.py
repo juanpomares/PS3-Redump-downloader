@@ -4,7 +4,6 @@ import time
 import libtorrent as lt
 from tqdm import tqdm
 
-METADATA_TIMEOUTS_SECONDS = (120, 180, 300)
 _torrent_session = None
 
 
@@ -17,6 +16,14 @@ def getTorrentSession():
         })
 
     return _torrent_session
+
+
+def getTorrentInfo(torrent_file_path):
+    torrent_size = os.path.getsize(torrent_file_path)
+
+    torrent_limits = {"max_buffer_size": torrent_size + 1024 * 1024}
+
+    return lt.torrent_info(torrent_file_path, torrent_limits)
 
 
 def findFileIndexInTorrent(torrent_info, file_name_to_download):
@@ -54,36 +61,6 @@ def findFileIndexInTorrent(torrent_info, file_name_to_download):
     return match["index"]
 
 
-def waitForTorrentMetadata(torrent_handle, timeout_seconds):
-    timeout_at = time.monotonic() + timeout_seconds
-
-    while True:
-        status = torrent_handle.status()
-
-        if status.errc and status.errc.value() != 0:
-            raise RuntimeError(
-                f"Torrent error: {status.errc.message()}"
-            )
-
-        if status.has_metadata:
-            torrent_info = torrent_handle.torrent_file()
-
-            if torrent_info is None:
-                raise RuntimeError(
-                    "Torrent metadata was received but "
-                    "torrent information is not available."
-                )
-
-            return torrent_info
-
-        if time.monotonic() >= timeout_at:
-            raise TimeoutError(
-                "Timeout waiting for torrent metadata."
-            )
-
-        time.sleep(0.25)
-
-
 def removeTorrentAndPartFile(torrent_handle):
     torrent_session = getTorrentSession()
     torrent_session.remove_torrent(torrent_handle, lt.session.delete_partfile)
@@ -97,39 +74,8 @@ def removeTorrentAndPartFile(torrent_handle):
         time.sleep(0.05)
 
 
-def getTorrentMetadataFromMagnet(torrent_session, magnet_link, destination_folder):
+def downloadTorrentFileByIndex(torrent_info, torrent_index, destination_file_path):
 
-    attempts_count = len(METADATA_TIMEOUTS_SECONDS)
-
-    for attempt, timeout_seconds in enumerate(METADATA_TIMEOUTS_SECONDS, start=1):
-
-        torrent_params = lt.parse_magnet_uri(magnet_link)
-        torrent_params.save_path = destination_folder
-        torrent_params.flags |= lt.torrent_flags.default_dont_download
-
-        torrent_handle = torrent_session.add_torrent(torrent_params)
-
-        print(
-            f"Downloading torrent metadata... (attempt {attempt}/{attempts_count}, timeout {timeout_seconds // 60} min)")
-
-        try:
-            torrent_info = waitForTorrentMetadata(
-                torrent_handle, timeout_seconds)
-
-            print("Torrent metadata downloaded.")
-
-            return torrent_handle, torrent_info
-
-        except TimeoutError:
-            removeTorrentAndPartFile(torrent_handle)
-
-            if attempt < attempts_count:
-                print("Metadata download timed out. Retrying...")
-            else:
-                raise
-
-
-def downloadMagnetFileWithLibTorrent(magnet_link, file_name_to_download, destination_file_path):
     destination_file_path = os.path.abspath(destination_file_path)
 
     destination_folder = os.path.dirname(destination_file_path)
@@ -140,36 +86,24 @@ def downloadMagnetFileWithLibTorrent(magnet_link, file_name_to_download, destina
 
         return destination_file_path
 
+    torrent_files = torrent_info.files()
+
+    selected_file_size = torrent_files.file_size(torrent_index)
+
+    torrent_info.rename_file(torrent_index, destination_file_name)
+
+    file_priorities = [lt.dont_download] * torrent_files.num_files()
+    file_priorities[torrent_index] = lt.top_priority
+
     torrent_session = getTorrentSession()
-    torrent_handle = None
+
+    torrent_handle = torrent_session.add_torrent({
+        "ti": torrent_info,
+        "save_path": destination_folder,
+        "file_priorities": file_priorities
+    })
 
     try:
-        torrent_handle, torrent_info = getTorrentMetadataFromMagnet(
-            torrent_session, magnet_link, destination_folder)
-
-        torrent_index = findFileIndexInTorrent(
-            torrent_info, file_name_to_download)
-
-        torrent_files = torrent_info.files()
-
-        selected_file_size = torrent_files.file_size(torrent_index)
-        torrent_handle.rename_file(torrent_index, destination_file_name)
-
-        torrent_handle.file_priority(torrent_index, 7)
-
-        priority_timeout_at = time.monotonic() + 10
-
-        while torrent_handle.file_priority(torrent_index) == 0:
-            status = torrent_handle.status()
-
-            if status.errc and status.errc.value() != 0:
-                raise RuntimeError(f"Torrent error: {status.errc.message()}")
-
-            if time.monotonic() >= priority_timeout_at:
-                raise TimeoutError("Timeout applying torrent file priority.")
-
-            time.sleep(0.05)
-
         print(f"Downloading {destination_file_name} using libtorrent...")
 
         with tqdm(
@@ -256,3 +190,12 @@ def downloadMagnetFileWithLibTorrent(magnet_link, file_name_to_download, destina
     print(f"File downloaded: {destination_file_path}")
 
     return destination_file_path
+
+
+def downloadFileWithLibTorrent(torrent_file_path, file_name_to_download, destination_file_path):
+
+    torrent_info = getTorrentInfo(torrent_file_path)
+
+    torrent_index = findFileIndexInTorrent(torrent_info, file_name_to_download)
+
+    return downloadTorrentFileByIndex(torrent_info, torrent_index, destination_file_path)
