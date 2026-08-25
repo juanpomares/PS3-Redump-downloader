@@ -10,7 +10,7 @@ This project is not affiliated with Minerva Archive.
 
 The project currently uses **Minerva Archive** as its upstream source.
 
-Downloads are handled through **BitTorrent magnet links** provided directly by Minerva Archive. The application downloads only the required game and disc key files from their respective torrents.
+Downloads are handled through **BitTorrent `.torrent` files** retrieved directly from Minerva Archive. The application uses libtorrent to download only the required game and disc key files from their respective torrents.
 
 ## Intended use / legal
 
@@ -63,7 +63,7 @@ pip install requests beautifulsoup4 tqdm libtorrent
 python main.py
 ```
 
-The source version uses **libtorrent** directly to download files from Minerva Archive magnet links.
+The source version retrieves `.torrent` files from Minerva Archive and uses **libtorrent** to download only the selected files.
 
 ---
 
@@ -76,7 +76,7 @@ Only games for which both the game file and the corresponding disc key are avail
 The resulting list is cached in:
 
 ```text
-listPS3Titles.json
+tmp/listPS3Titles.json
 ```
 
 ![First Time Open](./doc/firstTimeOpen.png)
@@ -99,11 +99,12 @@ Each result is assigned a number. Enter the desired number and press **Enter**.
 
 The application will then automatically:
 
-1. Download the game ZIP using its magnet link.
-2. Download the corresponding disc key ZIP.
-3. Extract both files.
-4. Decrypt the ISO using PS3Dec.
-5. Generate the decrypted PS3 ISO.
+1. Retrieve or reuse the corresponding `.torrent` file.
+2. Download only the selected game ZIP using libtorrent.
+3. Retrieve or reuse the disc key `.torrent` file and download the corresponding key ZIP.
+4. Extract both files.
+5. Decrypt the ISO using PS3Dec.
+6. Generate the decrypted PS3 ISO.
 
 ![Downloading Game](./doc/downloading.gif)
 
@@ -125,13 +126,15 @@ EXTERNAL_KEY = 0
 ```
 
 Set either value to `1` to manually download that file using your preferred torrent client.
-The application will provide the corresponding magnet link and wait for the requested file to be copied into the indicated folder.
+
+The application will provide the corresponding `.torrent` file and wait for the requested ZIP file to be copied into the indicated folder.
 
 ---
 
 ## Contributions
 
 Contributions are welcome, especially bug fixes and maintenance improvements.
+
 If you find a bug or want to suggest an improvement, please open an issue or submit a pull request.
 
 ---
