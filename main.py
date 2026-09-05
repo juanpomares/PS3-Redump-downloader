@@ -7,12 +7,13 @@ import sys
 import time
 import zipfile
 import configparser
-import webbrowser
+from datetime import datetime
 
-import requests
-from bs4 import BeautifulSoup
+from requestUtils import getPS3ListByUrl, getTorrentFile
 from tqdm import tqdm
 from tqdm.utils import CallbackIOWrapper
+
+from torrentUtils import downloadFileWithLibTorrent
 
 config = {}
 TMP_FOLDER_PATHNAME = ''
@@ -20,51 +21,98 @@ TMP_ISO_FOLDER_PATHNAME = ''
 TMP_KEY_FOLDER_PATHNAME = ''
 
 
-def getPS3List():
-    json_file_path = os.path.join(TMP_FOLDER_PATHNAME, config['LIST_FILES_JSON_NAME'])
-    json_file_name = f"{config['TMP_FOLDER_NAME']}/{config['LIST_FILES_JSON_NAME']}"
+def isGameListValid(game_list):
+    if not isinstance(game_list, list):
+        return False
+
+    for game in game_list:
+        if not isinstance(game, dict):
+            return False
+        if not all(key in game for key in ['title', 'size', 'game_id', 'key_id']):
+            return False
+
+    return True
+
+
+def renameInvalidFile(file_name):
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    invalid_file_name = os.path.join(
+        os.path.dirname(file_name),
+        f"{timestamp}.invalid.{os.path.basename(file_name)}"
+    )
+
+    os.replace(file_name, invalid_file_name)
+
+    return invalid_file_name
+
+
+def getFileListFromJSON(file_name):
+    if not os.path.isfile(file_name):
+        return None
 
     try:
-        with open(json_file_path, 'r') as file:
+        with open(file_name, 'r') as file:
             print(f"{config['LIST_FILES_JSON_NAME']} exists...")
             list_files = json.load(file)
-            list_files_len = len(list_files)
-            if list_files_len > 0:
-                print(f"{config['LIST_FILES_JSON_NAME']} has {list_files_len} titles")
-                return list_files
-    except:
-        pass
 
-    print('Downloading PS3 list...')
-    ps3_titles_response = requests.get(config['ISO_URL'])
+        list_files_len = len(list_files)
+        if list_files_len > 0 and isGameListValid(list_files):
+            print(
+                f"{config['LIST_FILES_JSON_NAME']} has {list_files_len} titles")
+            return list_files
 
-    available_ps3_titles = []
+    except Exception as e:
+        print(f"Error reading JSON file '{file_name}': {e}")
 
-    print('Converting data...')
-    soup = BeautifulSoup(ps3_titles_response.content, features='html.parser')
-    links = soup.select('table#list tbody tr')
-    links.pop(0)
+    invalid_file_name = renameInvalidFile(file_name)
+    print(f"{config['LIST_FILES_JSON_NAME']} is empty or invalid. Old file renamed to '{invalid_file_name}'. Re-downloading...")
 
-    for current_link in links:
-        try:
-            link_element = current_link.select('td.link a')[0]
-            size_element = current_link.select('td.size')[0]
+    return None
 
-            available_ps3_titles.append(
-                {'title': link_element.text, 'link': link_element['href'], 'size': size_element.text})
 
-        except:
-            pass
+def getPS3List():
+    json_file_path = os.path.join(
+        TMP_FOLDER_PATHNAME, config['LIST_FILES_JSON_NAME'])
+    json_file_name = f"{config['TMP_FOLDER_NAME']}/{config['LIST_FILES_JSON_NAME']}"
 
-    print(f'Downloaded {len(available_ps3_titles)} titles')
+    final_list = getFileListFromJSON(json_file_path)
+
+    if final_list is not None:
+        return final_list
+
+    games_list = getPS3ListByUrl(config['ISO_URL'])
+    keys_list = getPS3ListByUrl(config['KEY_URL'])
+
+    keys_by_title = {
+        key['title']: key
+        for key in keys_list
+    }
+
+    final_list = []
+
+    for game in games_list:
+        title = game['title']
+
+        key_entry = keys_by_title.get(title)
+
+        if not key_entry:
+            continue
+
+        final_list.append({
+            'title': title,
+            'size': game['size'],
+            'game_id': game['id'],
+            'key_id': key_entry['id']
+        })
+
+    print(f'List loaded with {len(final_list)} titles')
 
     with open(json_file_path, 'w') as file:
-        file.write(json.dumps(available_ps3_titles))
-        file.close()
+        json.dump(final_list, file, indent=4, sort_keys=True)
 
     print(f'Saved in {json_file_name}')
 
-    return available_ps3_titles
+    return final_list
 
 
 def printList(_list):
@@ -73,110 +121,57 @@ def printList(_list):
     print('')
 
 
-def titleContainsWords(title, searches):
-    for search in searches:
-        if search not in title:
-            return False
-
-    return True
-
-
 def filterList(_list, search):
-    searches = search.strip().lower().split(" ")
-    filtered_list = []
+    searches = search.strip().lower().split()
 
-    for element in _list:
-        if titleContainsWords(element['title'].lower(), searches):
-            filtered_list.append(element)
-
-    return filtered_list
-
-
-def getFileSize(link):
-    response = requests.get(link, headers={"Range": "bytes=0-1"})
-    try:
-        total_size = int(response.headers.get('content-range').split('/')[1])
-    except:
-        total_size = None
-
-    return total_size
+    return [
+        element
+        for element in _list
+        if all(
+            search in element['title'].lower()
+            for search in searches
+        )
+    ]
 
 
-# Original code from https://stackoverflow.com/a/37573701
-def downloadFileUsingRequest(link, name):
-    total_size = getFileSize(link)
+def downloadFileUsingExternalTorrentClient(torrent_file_path, file_name_to_download, destination_file_path):
+    destination_file_path = os.path.abspath(destination_file_path)
+    torrent_file_path = os.path.abspath(torrent_file_path)
 
-    retries = 0
-    while retries < config["MAX_RETRIES"]:
-        headers = {}
+    destination_folder = os.path.dirname(destination_file_path)
 
-        first_byte = 0
-        if total_size is not None and os.path.exists(name):
-            first_byte = os.path.getsize(name)
-            if first_byte >= total_size:
-                print(f"The files {name} is downloaded previosly.")
-                return
-            headers = {"Range": f"bytes={first_byte}-{total_size}"}
+    if os.path.isfile(destination_file_path):
+        print(f"File already exists: {destination_file_path}")
+        return destination_file_path
 
-        try:
-            with requests.get(link, headers=headers, stream=True, timeout=config["TIMEOUT_REQUEST"],
-                              verify=True) as response, open(name, "ab") as newFile:
-                block_size = 1024
-                if total_size is None:  # no content length header
-                    newFile.write(response.content)
-                else:
-                    with tqdm(total=total_size, unit="B", unit_scale=True, unit_divisor=block_size,
-                              desc=" - Downloading: ",
-                              ascii=' █', initial=first_byte) as progress_bar:
-                        for data in response.iter_content(block_size):
-                            progress_bar.update(len(data))
-                            newFile.write(data)
+    print(
+        f"\nPlease open the following torrent file with your preferred torrent client:\n"
+        f"'{torrent_file_path}'"
+    )
 
-                        if total_size != 0 and progress_bar.n != total_size:
-                            raise RuntimeError("Could not download file")
+    print(
+        f"\nDownload only '{file_name_to_download}' and copy it to:\n"
+        f"'{destination_folder}'"
+    )
 
-                        break
-
-        except (requests.ConnectionError, requests.Timeout, RuntimeError):
-            retries += 1
-            print(
-                f"Connection error! Try again ({retries}/{config['MAX_RETRIES']}). Waiting {config['DELAY_BETWEEN_RETRIES']} secs...")
-            time.sleep(config['DELAY_BETWEEN_RETRIES'])
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            break
-
-    if retries == config['MAX_RETRIES']:
-        raise RuntimeError(f"Failed to download file after {config['MAX_RETRIES']} attempts.")
-
-
-def downloadFileUsingNavigator(isISO, route, downloaded_file_name, zip_file, unzippedFile):
-    destination_folder = os.path.join(TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME, " ")
-
-    print(f"Opening browser with download link (${route})")
-    webbrowser.open(route)
-
-    time.sleep(5)
-    print(f"Please download the file and copy '{downloaded_file_name}' to '{destination_folder}'")
     openExplorer(destination_folder)
 
-    time.sleep(5)
-    print("Waiting for the file to be copied...")
-    input("Press enter to start checking for the file...")
+    print("\nWaiting for the file to be copied...")
+    input("Press Enter to start checking for the file...")
 
-    while not os.path.exists(zip_file) and not os.path.exists(unzippedFile):
-        print(f"\nFile not found!! Make sure to download and copy the file to '{destination_folder}'")
-        input("\tPress enter to check it again...")
+    while not os.path.isfile(destination_file_path):
+        print(
+            f"\nFile not found! Make sure "
+            f"'{file_name_to_download}' has been downloaded "
+            f"and copied to:\n"
+            f"'{destination_folder}'"
+        )
 
-    print('')
+        input("\tPress Enter to check again...")
 
+    print(f"\nFile found: '{destination_file_path}'\n")
 
-def downloadFile(isISO, route, downloaded_file_name, zip_file, unzippedFile):
-    download_using_navigator = config["EXTERNAL_ISO_DOWNLOAD" if isISO else "EXTERNAL_KEY_DOWNLOAD"]
-    if download_using_navigator:
-        downloadFileUsingNavigator(isISO, route, downloaded_file_name, zip_file, unzippedFile)
-    else:
-        downloadFileUsingRequest(route, zip_file)
+    return destination_file_path
 
 
 # Original code from https://stackoverflow.com/a/73694796
@@ -196,11 +191,11 @@ def unZipFile(fzip):
                     copyfileobj(CallbackIOWrapper(pbar.update, fi), fo)
 
 
-def removeFile(fileRoute):
+def removeFile(file_route):
     try:
-        os.remove(fileRoute)
-    except:
-        print(f'Error removing {fileRoute}')
+        os.remove(file_route)
+    except OSError as e:
+        print(f"Error removing '{file_route}': {e}")
 
 
 def removeFiles(files):
@@ -208,27 +203,99 @@ def removeFiles(files):
         removeFile(file)
 
 
-def downloadAndUnzip(route, title, isISO):
+def downloadFile(isISO, torrent_file_path, file_name_to_download, tmp_folder_path):
+    destination_file_path = os.path.join(
+        tmp_folder_path, file_name_to_download)
+
+    download_using_external_client = config[
+        "EXTERNAL_ISO_DOWNLOAD"
+        if isISO
+        else "EXTERNAL_KEY_DOWNLOAD"
+    ]
+
+    if download_using_external_client:
+        return downloadFileUsingExternalTorrentClient(torrent_file_path, file_name_to_download, destination_file_path)
+
+    return downloadFileWithLibTorrent(torrent_file_path, file_name_to_download, destination_file_path)
+
+
+def unzipAndRemoveFile(zip_file_path, expected_file_path):
+    if not os.path.isfile(zip_file_path):
+        return False
+
+    try:
+        unZipFile(zip_file_path)
+
+    except (zipfile.BadZipFile, EOFError) as e:
+        print(f"Invalid or incomplete ZIP '{zip_file_path}': {e}")
+
+        if os.path.exists(expected_file_path):
+            removeFile(expected_file_path)
+
+        removeFile(zip_file_path)
+        return False
+
+    except OSError as e:
+        raise RuntimeError(f"Could not extract '{zip_file_path}': {e}"
+                           ) from e
+
+    if not os.path.isfile(expected_file_path):
+        print(
+            f"The ZIP was extracted, but the expected file "
+            f"was not found: {expected_file_path}"
+        )
+
+        removeFile(zip_file_path)
+        return False
+
+    removeFile(zip_file_path)
+    return True
+
+
+def downloadAndUnzip(rom_id, title, isISO):
     is_iso_string = "ISO" if isISO else "Key"
     print(f" # {is_iso_string} file...")
 
-    unzipped_file_name = f"{title}.{'iso' if isISO else 'dkey'}"
-    unzipped_file_path = os.path.join(TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME, unzipped_file_name)
+    tmp_folder_path = TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME
 
-    if os.path.exists(unzipped_file_path):
+    unzipped_file_name = f"{title}.{'iso' if isISO else 'dkey'}"
+    unzipped_file_path = os.path.join(tmp_folder_path, unzipped_file_name)
+
+    if os.path.isfile(unzipped_file_path):
         print(' - File previously downloaded :)', end='\n\n')
         return
 
-    new_file_name = f"{title}.zip"
-    tmp_file = os.path.join(TMP_ISO_FOLDER_PATHNAME if isISO else TMP_KEY_FOLDER_PATHNAME, new_file_name)
+    zipped_file_name = f"{title}.zip"
+    zipped_file_path = os.path.join(tmp_folder_path, zipped_file_name)
 
-    downloadFile(isISO, route, new_file_name, tmp_file, unzipped_file_name)
+    if unzipAndRemoveFile(zipped_file_path, unzipped_file_path):
+        print(' - File previously downloaded/extracted :)', end='\n\n')
+        return
 
-    if os.path.exists(tmp_file):
-        unZipFile(tmp_file)
-        removeFile(tmp_file)
+    for attempt in range(2):
+        torrent_file_path = getTorrentFile(rom_id, tmp_folder_path)
 
-    print(' ')
+        try:
+            downloaded_file_path = downloadFile(
+                isISO, torrent_file_path, zipped_file_name, tmp_folder_path)
+            break
+
+        except FileNotFoundError:
+            if attempt == 1:
+                raise
+
+            print(
+                "Requested file was not found in the cached torrent. "
+                "Refreshing torrent file...")
+            removeFile(torrent_file_path)
+
+    if not unzipAndRemoveFile(downloaded_file_path, unzipped_file_path):
+        raise RuntimeError(
+            f"Could not extract the downloaded file: "
+            f"{downloaded_file_path}"
+        )
+
+    print(" ")
 
 
 def readGameKey(gameKeyRoute):
@@ -247,16 +314,19 @@ def openExplorer(fileName):
 
     if os.path.exists(path):
         if os.name == 'nt':  # Windows Systems
-            subprocess.Popen(['explorer', '/select,', path] if is_file else ['explorer', path])
+            subprocess.Popen(['explorer', '/select,', path]
+                             if is_file else ['explorer', path])
         elif os.name == 'posix':  # Unix Systems (Linux, macOS)
-            subprocess.Popen(['xdg-open', '--select', path] if is_file else ['xdg-open', path])
+            subprocess.Popen(['xdg-open', '--select', path]
+                             if is_file else ['xdg-open', path])
     else:
         print(f"Error opening {fileName}.\n")
 
 
 def decryptFile(gameName):
     key_route_name = os.path.join(TMP_KEY_FOLDER_PATHNAME, f"{gameName}.dkey")
-    original_game_path_name = os.path.join(TMP_ISO_FOLDER_PATHNAME, f"{gameName}.iso")
+    original_game_path_name = os.path.join(
+        TMP_ISO_FOLDER_PATHNAME, f"{gameName}.iso")
 
     print(f"\nDecrypting {gameName} using PS3Dec ...")
     decrypted_key = readGameKey(key_route_name)
@@ -276,13 +346,12 @@ def decryptFile(gameName):
 
 
 def downloadPS3Element(element):
-    link = element['link']
     title = element['title'].replace(".zip", "")
 
     print(f"\nSelected {title}\n")
 
-    downloadAndUnzip(config['ISO_URL'] + link, title, True)
-    downloadAndUnzip(config['KEY_URL'] + link, title, False)
+    downloadAndUnzip(element['game_id'], title, isISO=True)
+    downloadAndUnzip(element['key_id'], title, isISO=False)
     print(f'\n{title} downloaded :)')
     decryptFile(title)
 
@@ -291,7 +360,8 @@ def createFolder(folderPath):
     try:
         os.mkdir(folderPath)
     except OSError as error:
-        print(f"Error creating '{config['TMP_FOLDER_NAME']}' folder {error}", end='\n\n')
+        print(
+            f"Error creating '{config['TMP_FOLDER_NAME']}' folder {error}", end='\n\n')
         sys.exit(-1)
 
 
@@ -299,7 +369,8 @@ def checkFolder(folderPath):
     if not os.path.exists(folderPath):
         createFolder(folderPath)
     elif not os.path.isdir(folderPath):
-        print(f"Please remove the file named as {config['TMP_FOLDER_NAME']}", end='\n\n')
+        print(
+            f"Please remove the file named as {config['TMP_FOLDER_NAME']}", end='\n\n')
         sys.exit(-1)
 
 
@@ -311,11 +382,13 @@ def checkWorkingFolders():
     checkFolder(TMP_FOLDER_PATHNAME)
 
     global TMP_ISO_FOLDER_PATHNAME
-    TMP_ISO_FOLDER_PATHNAME = os.path.join(current_dir, config['TMP_FOLDER_NAME'], config['TMP_ISO_FOLDER_NAME'])
+    TMP_ISO_FOLDER_PATHNAME = os.path.join(
+        current_dir, config['TMP_FOLDER_NAME'], config['TMP_ISO_FOLDER_NAME'])
     checkFolder(TMP_ISO_FOLDER_PATHNAME)
 
     global TMP_KEY_FOLDER_PATHNAME
-    TMP_KEY_FOLDER_PATHNAME = os.path.join(current_dir, config['TMP_FOLDER_NAME'], config['TMP_KEY_FOLDER_NAME'])
+    TMP_KEY_FOLDER_PATHNAME = os.path.join(
+        current_dir, config['TMP_FOLDER_NAME'], config['TMP_KEY_FOLDER_NAME'])
     checkFolder(TMP_KEY_FOLDER_PATHNAME)
 
 
@@ -326,29 +399,19 @@ def loadConfig():
     global config
     config = {
         'ISO_URL': config_file_parser.get('url', 'ISO',
-                                          fallback="https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/"),
+                                          fallback="https://minerva-archive.org/browse/Redump/Sony%20-%20PlayStation%203/"),
         'KEY_URL': config_file_parser.get('url', 'KEY',
-                                          fallback="https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203%20-%20Disc%20Keys%20TXT/"),
+                                          fallback="https://minerva-archive.org/browse/Redump/Sony%20-%20PlayStation%203%20-%20Disc%20Keys%20TXT/"),
 
         'LIST_FILES_JSON_NAME': config_file_parser.get('Download', 'LIST_FILES_JSON_NAME',
                                                        fallback="listPS3Titles.json"),
         'EXTERNAL_ISO_DOWNLOAD': config_file_parser.getint('Download', 'EXTERNAL_ISO', fallback=0) != 0,
         'EXTERNAL_KEY_DOWNLOAD': config_file_parser.getint('Download', 'EXTERNAL_KEY', fallback=0) != 0,
-        'MAX_RETRIES': config_file_parser.getint('Download', 'MAX_RETRIES', fallback=-1),
-        'DELAY_BETWEEN_RETRIES': config_file_parser.getint('Download', 'DELAY_BETWEEN_RETRIES', fallback=-1),
-        'TIMEOUT_REQUEST': config_file_parser.getint('Download', 'TIMEOUT_REQUEST', fallback=-1),
 
         'TMP_FOLDER_NAME': config_file_parser.get('folder', 'TMP_FOLDER_NAME', fallback="tmp"),
         'TMP_ISO_FOLDER_NAME': config_file_parser.get('folder', 'TMP_ISO_FOLDER_NAME', fallback="iso_files"),
         'TMP_KEY_FOLDER_NAME': config_file_parser.get('folder', 'TMP_KEY_FOLDER_NAME', fallback="key_files"),
     }
-
-    if config['MAX_RETRIES'] < 1:
-        config['MAX_RETRIES'] = 5
-    if config['DELAY_BETWEEN_RETRIES'] < 5:
-        config['DELAY_BETWEEN_RETRIES'] = 5
-    if config['TIMEOUT_REQUEST'] < 0:
-        config['TIMEOUT_REQUEST'] = None
 
 
 def main():
@@ -378,7 +441,8 @@ def main():
                     downloadPS3Element(filtered_list[file_number])
 
                 else:
-                    print(f'Number not in valid range (1-{filtered_list_len})\n')
+                    print(
+                        f'Number not in valid range (1-{filtered_list_len})\n')
                     time.sleep(2)
                 search_input = ''
 

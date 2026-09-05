@@ -1,19 +1,21 @@
 # PS3 Redump Downloader
 
-> ⚠️ **Upstream notice (Myrient shutdown)**  
-> Myrient has announced it will shut down on **31 March 2026**. After that date, any feature that relies on Myrient as the download source will stop working unless you configure an alternative source.  
-> This project is not affiliated with Myrient.
+PS3 Redump Downloader is a console application that helps download and process PS3 disc image files from [Minerva Archive](https://minerva-archive.org/) and decrypt them using **PS3Dec**.
 
-PS3 Redump Downloader is a Python console application to help download and process PS3 disc image files from a configured source ( [Redump PS3](https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%203/) ), and decrypt them using **PS3Dec**.
+The application automatically downloads both the game image and its corresponding disc key, extracts them, and uses PS3Dec to generate the decrypted ISO.
+
+This project is not affiliated with Minerva Archive.
 
 ## Project status
 
-- **Maintenance mode** until 31 March 2026 (bugfixes and small improvements only).
-- After the shutdown date, the project may be **archived** if there is no longer a maintained upstream source.
+The project currently uses **Minerva Archive** as its upstream source.
+
+Downloads are handled through **BitTorrent `.torrent` files** retrieved directly from Minerva Archive. The application uses libtorrent to download only the required game and disc key files from their respective torrents.
 
 ## Intended use / legal
 
-This tool is intended for **lawful personal use**, such as working with **disc dumps you made yourself** or content you otherwise have the rights to use.  
+This tool is intended for **lawful personal use**, such as working with **disc dumps you made yourself** or content you otherwise have the rights to use.
+
 You are responsible for complying with applicable laws in your jurisdiction.
 
 ---
@@ -25,60 +27,114 @@ You are responsible for complying with applicable laws in your jurisdiction.
 #### Easy Installation
 
 1. Go to the **[Releases page](https://github.com/juanpomares/PS3-Redump-downloader/releases)** and download the latest `.zip`.
-2. Extract the downloaded zip file and run **PS3RedumpDownloader.exe**.
+2. Extract the downloaded ZIP file.
+3. Run **PS3RedumpDownloader.exe**.
 
-#### Manual Setup
+No Python installation is required when using the compiled release.
 
-1. Get **PS3Dec** (used to decrypt PS3 ISO files). You can either:
-   - Download a Windows build from **ConsoleMods**: https://consolemods.org/wiki/File:PS3DecR5.7z
-   - Or compile it yourself from **al3xtjames/PS3Dec**: https://github.com/al3xtjames/PS3Dec
-2. Download **PS3RedumpDownloader.exe** from the **[Releases page](https://github.com/juanpomares/PS3-Redump-downloader/releases)**.
-3. Place `PS3Dec.exe` next to `PS3RedumpDownloader.exe` (same folder) and run **PS3RedumpDownloader.exe**.
+#### PS3Dec
 
-### Other Operating Systems
+PS3Dec is required to decrypt the downloaded PS3 ISO files.
 
-1. Download and compile **PS3Dec**: https://github.com/al3xtjames/PS3Dec
+You can:
+
+- Download a Windows build from **ConsoleMods**:
+  https://consolemods.org/wiki/File:PS3DecR5.7z
+- Or compile it yourself from **al3xtjames/PS3Dec**:
+  https://github.com/al3xtjames/PS3Dec
+
+Place `PS3Dec.exe` next to `PS3RedumpDownloader.exe`.
+
+### Running from source
+
+If you prefer to run the application directly with Python:
+
+1. Install **PS3Dec** and make sure it is available to the application.
 2. Clone this repository.
-3. Install dependencies:
-   - `pip install requests beautifulsoup4 tqdm`
+3. Install the required Python dependencies:
+
+```bash
+pip install requests beautifulsoup4 tqdm libtorrent
+```
+
 4. Run:
-   - `python main.py`
+
+```bash
+python main.py
+```
+
+The source version retrieves `.torrent` files from Minerva Archive and uses **libtorrent** to download only the selected files.
 
 ---
 
 ## How to Use
 
-On first launch, the tool connects to the configured source and downloads the available title list.  
-This list is cached in a file named **`listPS3Titles.json`**.
+On first launch, the application connects to Minerva Archive and downloads the available PS3 game and disc key lists.
+
+Only games for which both the game file and the corresponding disc key are available are included.
+
+The resulting list is cached in:
+
+```text
+tmp/listPS3Titles.json
+```
 
 ![First Time Open](./doc/firstTimeOpen.png)
 
-Subsequent launches will load the cached list:
+Subsequent launches will load the cached list instead of downloading it again:
 
 ![Next Time Open](./doc/notFirstTimeOpen.png)
 
-The app will display: `Find PS3 title to download`.  
-Type a full title or a substring to filter the list.
+The application will display:
+
+```text
+Find PS3 title to download:
+```
+
+Enter a full title or part of a title to filter the available games.
 
 ![Filtering Game List](./doc/filterList.png)
 
-Each entry is indexed for selection. To download an item, type its index and press Enter.  
-The tool will download, extract, and then decrypt (via PS3Dec) when applicable.
+Each result is assigned a number. Enter the desired number and press **Enter**.
+
+The application will then automatically:
+
+1. Retrieve or reuse the corresponding `.torrent` file.
+2. Download only the selected game ZIP using libtorrent.
+3. Retrieve or reuse the disc key `.torrent` file and download the corresponding key ZIP.
+4. Extract both files.
+5. Decrypt the ISO using PS3Dec.
+6. Generate the decrypted PS3 ISO.
 
 ![Downloading Game](./doc/downloading.gif)
 
-When finished, you should see:
-
-- `Title_decrypted.iso`
-- Optional original files you may delete: `Title.iso` and `Title.dkey`
+Once completed, the decrypted ISO will be available in the application folder.
 
 ![Downloaded Game](./doc/downloaded.png)
 
 ---
 
+## Alternative torrent client
+
+The application can also be configured to use an external torrent client instead of the built-in libtorrent downloader.
+
+This can be configured independently for game and disc key downloads in `config.ini`:
+
+```ini
+EXTERNAL_ISO = 0
+EXTERNAL_KEY = 0
+```
+
+Set either value to `1` to manually download that file using your preferred torrent client.
+
+The application will provide the corresponding `.torrent` file and wait for the requested ZIP file to be copied into the indicated folder.
+
+---
+
 ## Contributions
 
-Contributions are welcome, with focus on bugfixes and maintenance.
+Contributions are welcome, especially bug fixes and maintenance improvements.
+
 If you find a bug or want to suggest an improvement, please open an issue or submit a pull request.
 
 ---
@@ -87,10 +143,14 @@ If you find a bug or want to suggest an improvement, please open an issue or sub
 
 - **al3xtjames** for creating **PS3Dec**: https://github.com/al3xtjames/PS3Dec
 
+- **Minerva Archive** for providing the upstream archive used by the application: https://minerva-archive.org/
+
 ## Author
 
 Developed by **juanpomares**: https://github.com/juanpomares/
 
 ## License
 
-This project is licensed under the **MIT License**. You are free to use, modify, and distribute this project, provided you include attribution to the original author.
+This project is licensed under the **MIT License**.
+
+You are free to use, modify, and distribute this project, provided you include attribution to the original author.
